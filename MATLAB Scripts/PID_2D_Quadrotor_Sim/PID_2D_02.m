@@ -1,4 +1,4 @@
-clc;
+ clc;
 clear;
 close all;
 
@@ -26,6 +26,8 @@ tspan = linspace(0,T,1000);
 
 quadrotor2D_animate(t,x);
 quadrotor2D_plots(t,x,params);
+quadrotor2D_state_reference_figure(t,x,params);
+quadrotor2D_control_inputs(t,x,params);
 
 function dx = quadrotor2D_dynamics(t,x,p)
 
@@ -182,6 +184,127 @@ grid on;
 
 performance_metrics_2D(t,ey,ez,x(:,3));
 end
+
+function quadrotor2D_state_reference_figure(t,x,p)
+
+% references
+y_ref     = arrayfun(p.y_des,t);
+z_ref     = arrayfun(p.z_des,t);
+y_dot_ref = arrayfun(p.y_dot_des,t);
+z_dot_ref = arrayfun(p.z_dot_des,t);
+theta_ref = zeros(length(t),1);
+
+figure('Color','w') %,'Position',[100 100 900 800]);
+
+subplot(3,1,1);
+plot(t,x(:,1),'b',t,y_ref,'r--','LineWidth',1.4);
+title('Position y');
+ylabel('y (m)');
+legend('y','y_{ref}');
+grid on;
+
+subplot(3,1,2);
+plot(t,x(:,2),'b',t,z_ref,'r--','LineWidth',1.4);
+title('Position z');
+ylabel('z (m)');
+legend('z','z_{ref}');
+grid on;
+
+subplot(3,1,3);
+plot(t,x(:,3)*180/pi,'b',t,theta_ref,'r--','LineWidth',1.4);
+title('Pitch Angle \theta');
+ylabel('\theta (deg)');
+xlabel('Time (s)');
+legend('\theta','\theta_{ref}');
+grid on;
+
+sgtitle('2D Quadrotor States vs Reference Trajectories');
+
+% save figure
+saveas(gcf,'Quadrotor_2D_States_vs_Reference.png');
+savefig('Quadrotor_2D_States_vs_Reference.fig');
+
+end
+
+function quadrotor2D_control_inputs(t,x,p)
+
+% preallocate
+u1 = zeros(length(t),1);
+u2 = zeros(length(t),1);
+
+% gains (same as dynamics)
+Kp_y = 10; Ki_y = 2; Kd_y = 14;
+Kp_z = 20; Ki_z = 5; Kd_z = 8;
+Kp_t = 50; Ki_t = 10; Kd_t = 15;
+
+for i = 1:length(t)
+
+    % states
+    y     = x(i,1);
+    z     = x(i,2);
+    theta = x(i,3);
+    y_dot = x(i,4);
+    z_dot = x(i,5);
+    theta_dot = x(i,6);
+    eiy   = x(i,7);
+    eiz   = x(i,8);
+    eit   = x(i,9);
+
+    % references
+    y_des = p.y_des(t(i));
+    z_des = p.z_des(t(i));
+    y_dot_des = p.y_dot_des(t(i));
+    z_dot_des = p.z_dot_des(t(i));
+
+    % errors
+    ey = y_des - y;
+    ez = z_des - z;
+    ey_dot = y_dot_des - y_dot;
+    ez_dot = z_dot_des - z_dot;
+
+    % outer loop
+    y_ddot_cmd = Kp_y*ey + Kd_y*ey_dot + Ki_y*eiy;
+    z_ddot_cmd = Kp_z*ez + Kd_z*ez_dot + Ki_z*eiz;
+
+    % desired pitch
+    theta_des = -(1/p.g)*y_ddot_cmd;
+    theta_des = min(max(theta_des,deg2rad(-45)),deg2rad(45));
+
+    % control inputs
+    u1(i) = p.m*(p.g + z_ddot_cmd);
+    u2(i) = Kp_t*(theta_des-theta) ...
+          + Kd_t*(0-theta_dot) ...
+          + Ki_t*eit;
+
+    % saturation (same as dynamics)
+    u1(i) = max(0,min(u1(i),2*p.m*p.g));
+    u2(i) = max(-0.5,min(u2(i),0.5));
+end
+
+% plot
+figure('Color','w') %,'Position',[150 150 800 500]);
+
+subplot(2,1,1);
+plot(t,u1,'LineWidth',2.5);
+ylabel('u_1 (N)');
+title('Control Input: Thrust');
+grid on;
+
+subplot(2,1,2);
+plot(t,u2,'LineWidth',2.5);
+ylabel('u_2 (N·m)');
+xlabel('Time (s)');
+title('Control Input: Pitch Torque');
+grid on;
+
+sgtitle('2D Quadrotor Control Inputs');
+
+% save figure
+saveas(gcf,'Quadrotor_2D_Control_Inputs.png');
+savefig('Quadrotor_2D_Control_Inputs.fig');
+
+end
+
 
 function performance_metrics_2D(t,ey,ez,etheta)
 

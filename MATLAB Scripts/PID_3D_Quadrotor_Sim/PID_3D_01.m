@@ -435,6 +435,100 @@ ylabel('u4 (Yaw Torque)');
 xlabel('Time (s)');
 grid on;
 
+function plot_and_save_quadrotor_results(t, x, params, u1, u2, u3, u4)
+% PLOT_AND_SAVE_QUADROTOR_RESULTS
+% Creates and saves:
+% 1) 6-state tracking figure (x,y,z,phi,theta,psi with references)
+% 2) Control input figure (u1,u2,u3,u4)
+%
+% Inputs:
+%   t      - time vector
+%   x      - state matrix from ode45
+%   params - parameter struct with desired trajectory handles
+%   u1..u4 - control inputs (computed post-simulation)
+
+    % Reference trajectories
+    x_ref = arrayfun(params.x_des, t);
+    y_ref = arrayfun(params.y_des, t);
+    z_ref = arrayfun(params.z_des, t);
+
+    phi_ref   = zeros(length(t),1);
+    theta_ref = zeros(length(t),1);
+    psi_ref   = arrayfun(params.psi_des, t);
+
+    %  FIGURE 1: STATE TRACKING
+    figure('Color','w','Position',[100 100 900 700]);
+
+    subplot(3,2,1);
+    plot(t,x(:,1),'b',t,x_ref,'r--','LineWidth',1.5);
+    title('X Position Tracking'); ylabel('x (m)');
+    legend('x','x_{ref}'); grid on;
+
+    subplot(3,2,3);
+    plot(t,x(:,2),'b',t,y_ref,'r--','LineWidth',1.5);
+    title('Y Position Tracking'); ylabel('y (m)');
+    legend('y','y_{ref}'); grid on;
+
+    subplot(3,2,5);
+    plot(t,x(:,3),'b',t,z_ref,'r--','LineWidth',1.5);
+    title('Z Position Tracking'); ylabel('z (m)');
+    xlabel('Time (s)');
+    legend('z','z_{ref}'); grid on;
+
+    subplot(3,2,2);
+    plot(t, x(:,4)*180/pi, 'b', ...
+         t, phi_ref*180/pi, 'r--', 'LineWidth', 1.5);
+    title('Roll Tracking'); ylabel('\phi (deg)');
+    legend('\phi','\phi_{ref}'); grid on;
+
+    subplot(3,2,4);
+    plot(t, x(:,5)*180/pi, 'b', ...
+         t, theta_ref*180/pi, 'r--', 'LineWidth', 1.5);
+    title('Pitch Tracking'); ylabel('\theta (deg)');
+    legend('\theta','\theta_{ref}'); grid on;
+
+    subplot(3,2,6);
+    plot(t, x(:,6)*180/pi, 'b', ...
+         t, psi_ref*180/pi, 'r--', 'LineWidth', 1.5);
+    title('Yaw Tracking'); ylabel('\psi (deg)');
+    xlabel('Time (s)');
+    legend('\psi','\psi_{ref}'); grid on;
+
+
+    sgtitle('Quadrotor State Tracking (Position and Attitude)');
+
+    saveas(gcf,'State_Tracking_XYZ_PhiThetaPsi.png');
+
+    %  FIGURE 2: CONTROL INPUTS
+    figure('Color','w','Position',[150 150 700 600]);
+
+    subplot(4,1,1);
+    plot(t,u1,'LineWidth',2);
+    ylabel('u_1 (Thrust)'); title('Control Inputs');
+    grid on;
+
+    subplot(4,1,2);
+    plot(t,u2,'LineWidth',2);
+    ylabel('u_2 (Roll Torque)');
+    grid on;
+
+    subplot(4,1,3);
+    plot(t,u3,'LineWidth',2);
+    ylabel('u_3 (Pitch Torque)');
+    grid on;
+
+    subplot(4,1,4);
+    plot(t,u4,'LineWidth',2);
+    ylabel('u_4 (Yaw Torque)');
+    xlabel('Time (s)');
+    grid on;
+
+    saveas(gcf,'Control_Inputs_u1_u2_u3_u4.png');
+
+end
+
+plot_and_save_quadrotor_results(t, x, params, u1, u2, u3, u4)
+
 function performance_metrics(t, ex, ey, ez, ephi, etheta, epsi)
     RMS_ex = sqrt(mean(ex.^2));
     RMS_ey = sqrt(mean(ey.^2));
