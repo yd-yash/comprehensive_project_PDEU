@@ -45,13 +45,13 @@ function u = pid_controller(t, x, p)
 
 
     % PID gains
-    Kp_x = 10;   Ki_x = 2;   Kd_x = 14;
-    Kp_y = 10;   Ki_y = 2;   Kd_y = 14;
-    Kp_z = 20;   Ki_z = 5;   Kd_z = 8;
+    Kp_x = 4;   Ki_x = 0.5;   Kd_x = 5;
+    Kp_y = 4;   Ki_y = 0.5;   Kd_y = 5;
+    Kp_z = 12;  Ki_z = 2;     Kd_z = 6;
 
-    Kp_phi   = 50;  Ki_phi   = 10;  Kd_phi   = 15;
-    Kp_theta = 50;  Ki_theta = 10;  Kd_theta = 15;
-    Kp_psi   = 50;  Ki_psi   = 8;   Kd_psi   = 15;
+    Kp_phi   = 0.01;  Ki_phi   = 0.0005;  Kd_phi   = 0.0008;
+    Kp_theta = 0.010;  Ki_theta = 0.0005;  Kd_theta = 0.0008;
+    Kp_psi   = 0.018;  Ki_psi   = 0.0008;   Kd_psi   = 0.0013;
 
     % outer loop: desired (commanded) acceleration (position PID) 
     x_ddot_cmd = Kp_x * e_x + Kd_x * e_x_dot + Ki_x * e_int_x;
@@ -77,6 +77,10 @@ function u = pid_controller(t, x, p)
     
     % total thrust (u1)
     u1 = p.m * (p.g + z_ddot_cmd);
+
+    % clamp u1 to physical rotor limits (4 rotors)
+    u1 = max(0, min(u1, 4 * p.T_max));
+ 
 
     % inner loop: attitude PID (torques) 
     u2 = Kp_phi   * (phi_des   - phi)   + Kd_phi   * (phi_dot_des - phi_dot)   + Ki_phi   * e_int_phi;

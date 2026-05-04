@@ -19,7 +19,7 @@ x0 = zeros(18, 1);
 
 % simulation parameters
 T     = 30;
-tspan = linspace(0, T, 1000);
+tspan = linspace(0, T, 3000);
 
 fprintf('Running simulation...\n');
 [t, x] = ode45(@(t, x) quadrotor3D_dynamics(t, x, params, @pid_controller), ...
