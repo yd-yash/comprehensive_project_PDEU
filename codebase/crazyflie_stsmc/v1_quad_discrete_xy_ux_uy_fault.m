@@ -37,7 +37,7 @@ A_mix = [ b,           b,           b,           b;
          -d,           d,          -d,            d];
 
 % fault parameters
-fault_enable = 1;   % 0 = healthy (all alphas = 1)
+fault_enable = 0;   % 0 = healthy (all alphas = 1)
                     % 1 = fault active
 
 fault_mode   = 1;   % 1 = pre-existing fault (entire simulation, from t = 0)
