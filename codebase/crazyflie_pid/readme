@@ -1,0 +1,111 @@
+% =========================================================================
+% README — Quadrotor 3D Simulation: Modular Structure
+% =========================================================================
+%
+% HOW TO RUN
+% ----------
+% 1. Place all .m files in the same folder (or add to MATLAB path)
+% 2. Open and run: main.m
+%    >> run('main.m')
+%
+% FILE STRUCTURE
+% --------------
+%
+%   main.m                   ← Entry point. Run this. Contains:
+%                                - calls get_params + get_trajectory
+%                                - initial conditions
+%                                - ode45 call
+%                                - post-processing call
+%                                - metrics & plots call
+%
+%   get_params.m             ← Physical parameters + fault settings
+%                               Edit here to change mass, inertia, limits, fault
+%
+%   get_trajectory.m         ← Reference trajectory (position + derivatives)
+%                               Edit here to change trajectory shape
+%                               Takes params as input, returns params with
+%                               trajectory fields appended
+%
+%   pid_controller.m         ← PID controller (all gains defined here)
+%                               Returns struct u with u1/u2/u3/u4
+%
+%   control_allocation.m     ← Maps [u1,u2,u3,u4] → [T1,T2,T3,T4]
+%                               Handles rotor failure + saturation
+%
+%   get_alpha.m              ← Fault logic (effectiveness of T1)
+%                               Called by both dynamics AND reconstruct
+%
+%   quadrotor3D_dynamics.m   ← ODE right-hand-side for ode45
+%                               Calls: pid_controller, control_allocation
+%
+%   reconstruct_signals.m    ← Post-simulation signal logging
+%                               Calls the SAME: pid_controller, control_allocation
+%                               No duplicated code — always in sync
+%
+%   plot_results.m           ← All figures in one place
+%
+%   performance_metrics.m    ← Prints RMS, IAE, ISE, ITAE, steady-state
+%
+%   quadrotor3D_animate.m    ← 3D animation (uncomment in main.m to use)
+%
+%
+% HOW TO CHANGE THINGS
+% --------------------
+%
+%   Change physical parameters (mass, inertia, arm length, etc.):
+%     → Edit get_params.m
+%     → Automatically picked up by everything via the params struct
+%
+%   Change fault settings:
+%     → Edit get_params.m:
+%         params.fault_enable = 1;
+%         params.fault_mode   = 2;     % inject during flight
+%         params.fault_time   = 10;    % seconds
+%         params.alpha_T1     = 0;     % 0=fully failed, 0.5=partial
+%
+%   Change reference trajectory:
+%     → Edit get_trajectory.m
+%     → Update x_des, y_des, z_des AND all their derivatives
+%       (velocity and acceleration) to stay consistent
+%
+%   Change PID gains:
+%     → Edit pid_controller.m (gains section)
+%     → Automatically applies to both simulation and post-processing
+%
+%   Switch to a different controller (LQR, SMC, MPC, etc.):
+%     1. Create new_controller.m with IDENTICAL signature:
+%            function u = new_controller(t, x, p)
+%            % Returns u.u1, u.u2, u.u3, u.u4, u.phi_des, u.theta_des, u.psi_des
+%     2. In main.m, change ONE line:
+%            [t, x] = ode45(@(t,x) quadrotor3D_dynamics(t, x, params, @new_controller), ...
+%     3. Also update the reconstruct_signals call:
+%            logs = reconstruct_signals(t, x, params, @new_controller);
+%     → Nothing else changes
+%
+%   Add new plots:
+%     → Edit plot_results.m (all logs are available in the logs struct)
+
+% =====================================================================
+    % FAULT SETTINGS
+    % =====================================================================
+    % HOW TO USE:
+    %
+    %   HEALTHY MODE (no fault):
+    %       fault_enable = 0
+    %       (all other fault params below are completely IGNORED)
+    %
+    %   FAULT MODE — pre-existing (active from t = 0):
+    %       fault_enable = 1
+    %       fault_mode   = 1
+    %       alpha_T1     = 0      (or any value in 0..1)
+    %
+    %   FAULT MODE — injected mid-flight:
+    %       fault_enable = 1
+    %       fault_mode   = 2
+    %       fault_time   = 10     (seconds — must be > 0)
+    %       alpha_T1     = 0      (or any value in 0..1)
+    %
+    % WARNING: Do NOT set fault_time = 0 with fault_mode = 2.
+    %          The condition (t >= fault_time) is always true from t=0,
+    %          making it identical to mode 1. Use fault_mode = 1 instead.
+    % =====================================================================

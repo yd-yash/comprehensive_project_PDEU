@@ -1,0 +1,147 @@
+% =========================================================================
+% standard_quad_params.m
+% Reference Parameter Sets for Real Quadrotors
+%
+% USAGE:
+%   This file is NOT called automatically. Use it as a reference when
+%   setting up get_params.m for a specific platform.
+%
+%   Copy the relevant block into get_params.m and adjust as needed.
+%
+% INCLUDED PLATFORMS:
+%   1. Bitcraze Crazyflie 2.1     — nano quad, ~27 g
+%   2. DJI F450 Flamewheel        — mid-size, ~1.0 kg
+%   3. 3DR IRIS+                  — research platform, ~1.3 kg
+%   4. Generic 250 mm Racing Quad — ~0.5 kg (close to current sim values)
+%
+% SOURCES:
+%   Crazyflie: Forster (2015), ETH Zurich system identification paper
+%   F450:      Mahony et al. (2012), manufacturer specs
+%   IRIS+:     3DR documentation, ArduPilot system ID
+%   250 Racing: Faessler et al. (2017), estimated from geometry
+%
+% NOTE ON T_max:
+%   Listed as thrust per rotor. Total hover thrust = m*g.
+%   Hover thrust per rotor = m*g/4.
+%   Recommended T_max >= 2 * (m*g/4) for reasonable control authority.
+% =========================================================================
+
+
+% =========================================================================
+% 1. BITCRAZE CRAZYFLIE 2.1
+%    Type    : Nano quadrotor, indoor research platform
+%    Mass    : ~27 g (with battery)
+%    Frame   : 92 mm motor-to-motor
+% =========================================================================
+% params.m   = 0.027;       % mass (kg)
+% params.g   = 9.81;
+% params.Ixx = 1.395e-5;    % (kg.m^2)  from system ID
+% params.Iyy = 1.395e-5;    % (kg.m^2)
+% params.Izz = 2.173e-5;    % (kg.m^2)
+% params.l   = 0.046;       % arm length motor-to-center (m)
+% params.d   = 0.005964;    % torque constant (m)  kq/kf ratio
+%
+% params.T_min = 0;
+% params.T_max = 0.16;      % N per rotor (max ~0.6 N total, hover ~0.066 N/rotor)
+%
+% NOTES:
+%   - Very fast attitude dynamics; requires high-bandwidth inner loop
+%   - Suitable for indoor hover and slow trajectories
+%   - Default gains in pid_controller.m will need retuning (much lighter)
+% =========================================================================
+
+
+% =========================================================================
+% 2. DJI F450 FLAMEWHEEL
+%    Type    : Mid-size quadrotor, popular research/hobby frame
+%    Mass    : ~1.0 kg (frame + motors + 3S battery, no payload)
+%    Frame   : 450 mm motor-to-motor diagonal
+% =========================================================================
+% params.m   = 1.0;         % mass (kg)
+% params.g   = 9.81;
+% params.Ixx = 0.0082;      % (kg.m^2)
+% params.Iyy = 0.0082;      % (kg.m^2)
+% params.Izz = 0.0148;      % (kg.m^2)
+% params.l   = 0.225;       % arm length motor-to-center (m)
+% params.d   = 0.016;       % torque constant (m)
+%
+% params.T_min = 0;
+% params.T_max = 9.0;       % N per rotor  (hover ~2.45 N/rotor)
+%
+% NOTES:
+%   - Well-documented platform; many published PID gain sets available
+%   - Good balance of agility and payload capacity (~200 g payload)
+%   - Hover per rotor: m*g/4 = 1.0*9.81/4 = 2.45 N  (well within T_max)
+% =========================================================================
+
+
+% =========================================================================
+% 3. 3DR IRIS+
+%    Type    : Research quadrotor (ArduPilot, ROS compatible)
+%    Mass    : ~1.3 kg (with battery, no payload)
+%    Frame   : 550 mm motor-to-motor diagonal
+% =========================================================================
+% params.m   = 1.3;         % mass (kg)
+% params.g   = 9.81;
+% params.Ixx = 0.0136;      % (kg.m^2)
+% params.Iyy = 0.0136;      % (kg.m^2)
+% params.Izz = 0.0246;      % (kg.m^2)
+% params.l   = 0.28;        % arm length motor-to-center (m)
+% params.d   = 0.020;       % torque constant (m)
+%
+% params.T_min = 0;
+% params.T_max = 14.0;      % N per rotor  (hover ~3.19 N/rotor)
+%
+% NOTES:
+%   - Commonly used in fault-tolerant control literature
+%   - Relatively high inertia — slower attitude response
+%   - Suitable for outdoor experiments and payload missions
+% =========================================================================
+
+
+% =========================================================================
+% 4. GENERIC 250 mm RACING QUADROTOR
+%    Type    : Compact FPV racing frame, high thrust-to-weight
+%    Mass    : ~0.5 kg (with battery)
+%    Frame   : 250 mm motor-to-motor diagonal
+%    *** Closest match to current simulation default values ***
+% =========================================================================
+% params.m   = 0.5;         % mass (kg)          ← current sim value
+% params.g   = 9.81;
+% params.Ixx = 0.0023;      % (kg.m^2)           ← current sim value
+% params.Iyy = 0.0023;      % (kg.m^2)           ← current sim value
+% params.Izz = 0.004;       % (kg.m^2)           ← current sim value
+% params.l   = 0.125;       % arm length (m)  NOTE: current sim uses 0.25 m
+%                           %   (0.25 m is large for a 250mm frame;
+%                           %    use 0.125 m for physical accuracy)
+% params.d   = 0.013;       % torque constant (m)
+%
+% params.T_min = 0;
+% params.T_max = 4.5;       % N per rotor  (hover ~1.23 N/rotor)
+%
+% NOTES:
+%   - Current sim default params match this class (except arm length)
+%   - Very agile; small inertia means fast attitude dynamics
+%   - High thrust-to-weight (~3.7) allows aggressive maneuvers
+%   - Arm length correction: l = frame_size_mm / (2 * sqrt(2) * 1000)
+%     => 250 / (2*1.414*1000) = 0.0884 m  (center-to-motor along arm)
+%     The sim uses 0.25 m which corresponds to a ~700 mm frame class.
+%     Adjust l to match your actual hardware.
+% =========================================================================
+
+
+% =========================================================================
+% QUICK COMPARISON TABLE
+% =========================================================================
+%
+%  Platform         m(kg)  Ixx(kg.m2)  Izz(kg.m2)  l(m)   T_max/rotor(N)
+%  -----------------------------------------------------------------------
+%  Crazyflie 2.1    0.027  1.395e-5    2.173e-5    0.046   0.16
+%  DJI F450         1.000  0.0082      0.0148      0.225   9.0
+%  3DR IRIS+        1.300  0.0136      0.0246      0.280   14.0
+%  250mm Racing     0.500  0.0023      0.0040      0.125   4.5
+%  Current sim      0.500  0.0023      0.0040      0.250*  2.5*
+%  -----------------------------------------------------------------------
+%  * current sim arm length and T_max may need adjustment for realism
+%
+% =========================================================================
