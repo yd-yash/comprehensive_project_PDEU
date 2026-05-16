@@ -1,9 +1,10 @@
-clc; clear; close all;
+% clc; clear; close all;
 
 p = parameters();
 p = fault_params(p);
 p = smc_params(p);
-p = reference_trajectory(p);
+% p = reference_trajectory(p);
+p = rt_thesis(p);
 
 dt = 0.01; % 100 Hz
 Tf = 40;
@@ -49,9 +50,12 @@ end
 fprintf('Simulation complete.\n');
 
 logs = reconstruct_signals(t_grid, X_log, p);
-performance_metrics(t_grid, logs.ex, logs.ey, logs.ez, logs.ephi, logs.etheta, logs.epsi);
+% performance_metrics(t_grid, logs.ex, logs.ey, logs.ez, logs.ephi, logs.etheta, logs.epsi);
+pm_thesis(t_grid, logs.ex, logs.ey, logs.ez, logs.ephi, logs.etheta, logs.epsi, logs, p);
+
 
 % quadrotor_animate(t_grid, X_log, p);
 
-plot_results(t_grid, X_log, logs, p);
+% plot_results(t_grid, X_log, logs, p);
+plots_thesis(t_grid, X_log, logs, p);
 

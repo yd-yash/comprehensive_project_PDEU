@@ -1,0 +1,150 @@
+%SETTING STARTS - DO NOT CHANGE Unless your TeX setting require so  
+
+% Page margin settings - % half inch margin all sides (recommended)
+\usepackage[
+    left=1.5in,    % 1.5" left margin (binding side)
+    right=1in,     % 1" right margin
+    top=1in,       % 1" top margin
+    bottom=1in,    % 1" bottom margin
+    includefoot    % Include footer in margin calculation
+]{geometry}
+
+%% Font settings - % Sans-serif font (recommended)
+%\usepackage[T1]{fontenc}
+%\usepackage{lmodern} 
+%\renewcommand*\familydefault{\sfdefault} 
+%\usepackage{slantsc}
+%\usepackage{relsize} 
+%\usefont{T1}{lmss}{m}{n}\selectfont 
+%\DeclareFontShape{T1}{lmss}{m}{sc}{<->ssub*lmss/m/n}{} 
+
+%Times new roman
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+
+% Page Border Setting (Double-Line Border)
+\usepackage{tikz}
+\usepackage{eso-pic}
+
+% Border settings
+\newlength{\borderthickness}
+\setlength{\borderthickness}{1pt}  % Line thickness
+\newlength{\bordergap}
+\setlength{\bordergap}{2pt}       % Reduced gap between lines (was 4pt)
+
+% Asymmetric border distances
+\newlength{\borderleft}
+\setlength{\borderleft}{1in}   % Left border offset (for binding)
+\newlength{\borderother}
+\setlength{\borderother}{0.5in}    % Other sides offset
+
+\AddToShipoutPictureBG{%
+\begin{tikzpicture}[remember picture, overlay]
+    % Outer border line
+    \draw[line width=\borderthickness] 
+        ([shift={(\borderleft,-\borderother)}]current page.north west) rectangle 
+        ([shift={(-\borderother,\borderother)}]current page.south east);
+    % Inner border line (closer now)
+    \draw[line width=\borderthickness] 
+        ([shift={(\borderleft+\bordergap,-\borderother-\bordergap)}]current page.north west) rectangle 
+        ([shift={(-\borderother-\bordergap,\borderother+\bordergap)}]current page.south east);
+\end{tikzpicture}%
+}
+
+%% Math/Definition/Theorem/Algorithm packages settings 
+\usepackage{sansmath}
+\sansmath
+\usepackage[cmex10]{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+% \usepackage{physics} 
+\usepackage{siunitx}
+\AtBeginDocument{\RenewCommandCopy\qty\SI}
+\newtheorem{mydef}{Definition}
+\newtheorem{mytherm}{Theorem}
+
+% % Custom commands for common notation
+\newcommand{\vect}[1]{\boldsymbol{#1}} % Vector notation
+\newcommand{\mat}[1]{\mathbf{#1}} % Matrix notation
+\newcommand{\pd}[2]{\frac{\partial #1}{\partial #2}} % Partial derivative
+\newcommand{\lagr}{\mathcal{L}} % Lagrangian
+\newcommand{\kine}{\mathcal{K}} % Kinetic energy
+\newcommand{\pote}{\mathcal{U}} % Potential energy
+
+% Algorithms/Code Listing environment settings  - 
+% Please do not change these settings
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+% \usepackage[utf8]{inputenc}
+\usepackage{listings}
+\usepackage{xcolor}
+\definecolor{codegreen}{rgb}{0,0.6,0.1}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codeblue}{rgb}{0.10,0.00,1.00}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{1.0,1.0,1.0}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{codeblue},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                        
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    frame=none
+}
+\lstset{style=mystyle}
+
+% Graphics/Figures environment settings
+\usepackage{subcaption}
+\usepackage{graphicx}
+\captionsetup[subfigure]{labelformat=empty}
+\usepackage{bm}
+\usepackage{caption}
+\usepackage{lipsum}
+
+% Table environment settings
+\usepackage{multirow}
+\usepackage{rotating}
+\usepackage{makecell}
+\usepackage{booktabs}
+%\usepackage{longtable,booktabs}
+
+% List of Abbreviations settings
+\usepackage{enumitem}
+\newlist{abbrv}{itemize}{1}
+\setlist[abbrv,1]{label=,labelwidth=1in,align=parleft,itemsep=0.1\baselineskip,leftmargin=!}
+
+% Bibliography/References settings   - Harvard Style was used in this report
+\usepackage[numbers]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[nameinlink]{cleveref}
+\definecolor{DarkBlue}{rgb}{0.00,0.00,0.50}
+\hypersetup{colorlinks=true,
+            linkcolor=black,
+            filecolor=magenta,
+            urlcolor=cyan,
+            citecolor=DarkBlue,
+            pdftitle={YJD CP Thesis},
+            }
+
+\renewcommand{\bibname}{References} % DO NOT remove or switch of 
+
+%% Appendix settings     
+\usepackage[toc]{appendix}
+
+
+%SETTING ENDS                                  

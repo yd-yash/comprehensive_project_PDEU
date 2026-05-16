@@ -1,0 +1,220 @@
+\chapter{Dynamics of Quadrotor UAVs}
+\label{ch:dynamics}
+
+\section{Foundations of Dynamical Systems}
+A dynamical system is a mathematical abstraction that describes how a set of physical variables—representing the state of a system—evolves over time according to a deterministic set of rules \cite{ref_56}. In classical physics, physical systems are characterized by continuous state trajectories, which are mathematically modeled as systems of ordinary differential equations (ODEs). Generally, a continuous-time nonlinear dynamical system can be represented in state-space form as:
+\begin{equation}
+\dot{X}(t) = F(X(t), U(t), D(t), t)
+\end{equation}
+where $X(t) \in \mathbb{R}^n$ denotes the $n$-dimensional state vector of the system, $U(t) \in \mathbb{R}^m$ is the $m$-dimensional control input vector, $D(t) \in \mathbb{R}^p$ represents the external perturbations or model uncertainties, and $F: \mathbb{R}^n \times \mathbb{R}^m \times \mathbb{R}^p \times \mathbb{R} \to \mathbb{R}^n$ is a smooth nonlinear vector field mapping the system's dynamics.
+
+\subsection{State-Space vs. Transfer Function Representations}
+In classical control theory, linear time-invariant (LTI) systems are commonly modeled using the transfer function representation in the complex Laplace domain \cite{ref_62}:
+\begin{equation}
+G(s) = \frac{Y(s)}{U(s)} = C(sI - A)^{-1}B + D
+\end{equation}
+While transfer functions are highly intuitive for single-input single-output (SISO) systems and frequency-response analyses (such as Bode and Nyquist criteria), they are fundamentally limited when applied to complex robotic systems:
+\begin{enumerate}
+    \item \textbf{Linearity Constraints:} Transfer functions rely on the principle of superposition, making them inapplicable to highly nonlinear, large-angle attitude flight regimes.
+    \item \textbf{MIMO Coupling Limitations:} Representing a multi-input multi-output (MIMO) system with strong internal coupling requires complex matrix transfer functions, which obscure the underlying physical conservation laws.
+    \item \textbf{Zero Initial Conditions:} Transfer functions require assuming zero initial energy states, which is incompatible with state trajectory transitions in real-world maneuvers.
+\end{enumerate}
+
+To address these limitations, modern robust control design relies on state-space modeling \cite{ref_56, ref_61}. The state-space representation is an "internal description" of the system, formulated as a set of coupled, first-order differential equations. This representation naturally handles nonlinearities, multiple inputs and outputs, time-varying parameters, and arbitrary initial conditions, providing the ideal mathematical framework for multi-axis quadrotor control.
+
+\section{Planar (2D) Quadrotor Dynamics}
+Before deriving the full three-dimensional (3D) equations of motion, we first analyze the planar (2D) quadrotor dynamics operating in a vertical plane ($x-z$) \cite{ref_58}. This simplified analysis builds physical intuition regarding the coupling between thrust vectoring and lateral translation, which is the defining characteristic of underactuated multirotors.
+
+Consider a planar quadrotor of mass $m$ and moment of inertia $I_{yy}$ about its lateral pitch axis. The vehicle's center of mass is located at $(x, z)$ in the vertical plane, and its pitch angle is denoted by $\theta$. The vehicle is equipped with two opposing rotors placed at a distance $d$ from the center of mass, generating upward forces $F_1$ and $F_2$, as shown in Figure \ref{fig:planar_quadrotor}.
+
+\begin{figure}[h!]
+\centering
+\fbox{
+  \begin{minipage}{0.8\textwidth}
+    \centering
+    \vspace{1.5cm}
+    \textbf{}
+    \vspace{1.5cm}
+  \end{minipage}
+}
+\caption{Free-body diagram of a planar (2D) quadrotor in the vertical $x-z$ plane, showing thrust vectoring and the angular coordinate $\theta$.}
+\label{fig:planar_quadrotor}
+\end{figure}
+
+Applying Newton's second law along the horizontal $x$-axis and vertical $z$-axis yields:
+\begin{align}
+m\ddot{x} &= -(F_1 + F_2)\sin\theta \\
+m\ddot{z} &= (F_1 + F_2)\cos\theta - mg
+\end{align}
+Similarly, applying Euler's rotational equation about the lateral $y$-axis yields:
+\begin{equation}
+I_{yy}\ddot{\theta} = d(F_2 - F_1)
+\end{equation}
+
+By defining the total vertical thrust input as $U_1 = F_1 + F_2$ and the pitching torque input as $\tau_{\theta} = d(F_2 - F_1)$, we write the planar dynamics in state-space form:
+\begin{align}
+\ddot{x} &= -\frac{U_1}{m}\sin\theta \\
+\ddot{z} &= \frac{U_1}{m}\cos\theta - g \\
+\ddot{\theta} &= \frac{\tau_{\theta}}{I_{yy}}
+\end{align}
+
+This planar model highlights the fundamental underactuation of quadrotors. There are three degrees of freedom ($x, z, \theta$) but only two control inputs ($U_1, \tau_{\theta}$). To generate a horizontal force and accelerate along the $x$-axis ($\ddot{x} \neq 0$), the vehicle must first apply a torque $\tau_{\theta}$ to tilt the body and rotate to a non-zero pitch angle ($\theta \neq 0$). 
+
+This couples the lateral translational acceleration $\ddot{x}$ directly to the pitch angle $\theta$, necessitating a hierarchical or cascaded control structure where the outer translation loop commands a desired tilt angle for the inner attitude loop.
+
+\section{3D Quadrotor Kinematics and Reference Frames}
+To model the full 6-DOF motion of a quadrotor in 3D space, we define two primary right-handed coordinate systems: the Inertial World Frame ($W$) and the Body-Fixed Frame ($B$), as introduced in Chapter \ref{ch:sys_desc}.
+
+% \subsection{The Rotation Matrix $R$}
+\subsection{\texorpdfstring{The Rotation Matrix $R$}{The Rotation Matrix R}}
+The absolute position of the quadrotor's center of mass is defined in the World Frame by the vector $p = [x, y, z]^T \in \mathbb{R}^3$. The orientation of the Body Frame relative to the World Frame is described by the three Euler angles: roll ($\phi$), pitch ($\theta$), and yaw ($\psi$). To transform vectors from the Body Frame to the Inertial Frame, we construct the rotation matrix $R \in SO(3)$ using the standard $Z-Y-X$ active rotation convention \cite{ref_59}. 
+
+This rotation sequence is constructed by performing three successive rotations about the principal axes:
+\begin{enumerate}
+    \item A rotation of yaw $\psi$ about the body $z$-axis:
+    \begin{equation}
+    R_z(\psi) = \begin{bmatrix} \cos\psi & -\sin\psi & 0 \\ \sin\psi & \cos\psi & 0 \\ 0 & 0 & 1 \end{bmatrix}
+    \end{equation}
+    \item A rotation of pitch $\theta$ about the intermediate $y$-axis:
+    \begin{equation}
+    R_y(\theta) = \begin{bmatrix} \cos\theta & 0 & \sin\theta \\ 0 & 1 & 0 \\ -\sin\theta & 0 & \cos\theta \end{bmatrix}
+    \end{equation}
+    \item A rotation of roll $\phi$ about the final body $x$-axis:
+    \begin{equation}
+    R_x(\phi) = \begin{bmatrix} 1 & 0 & 0 \\ 0 & \cos\phi & -\sin\phi \\ 0 & \sin\phi & \cos\phi \end{bmatrix}
+    \end{equation}
+\end{enumerate}
+
+Multiplying these matrices in the prescribed sequence ($R = R_z(\psi) R_y(\theta) R_x(\phi)$) yields the complete orthogonal rotation matrix $R \in SO(3)$:
+\begin{equation}
+R = \begin{bmatrix} \cos\psi\cos\theta & \cos\psi\sin\theta\sin\phi - \sin\psi\cos\phi & \cos\psi\sin\theta\cos\phi + \sin\psi\sin\phi \\ \sin\psi\cos\theta & \sin\psi\sin\theta\sin\phi + \cos\psi\cos\phi & \sin\psi\sin\theta\cos\phi - \cos\psi\sin\phi \\ -\sin\theta & \cos\theta\sin\phi & \cos\theta\cos\phi \end{bmatrix}
+\end{equation}
+
+Because $R$ is an element of the Special Orthogonal Group $SO(3)$, it satisfies the property $R^{-1} = R^T$. The transpose $R^T$ represents the rotation matrix that transforms coordinates from the Inertial Frame to the Body Frame.
+
+\subsection{Angular Velocity Transformation}
+The angular velocity of the quadrotor resolved in the Body Frame is denoted by $\omega_B = [p_w, q_w, r_w]^T \in \mathbb{R}^3$. The time derivative of the Euler angles is denoted by $\dot{\eta} = [\dot{\phi}, \dot{\theta}, \dot{\psi}]^T \in \mathbb{R}^3$. Because the successive Euler rotations are performed about moving intermediate axes, the angular velocity vector $\omega_B$ is not simply equal to the time derivative of the Euler angles ($\omega_B \neq \dot{\eta}$) \cite{ref_59}. 
+
+By projecting the Euler angular rates onto the body-fixed axes, we obtain the kinematic transformation:
+\begin{equation}
+\omega_B = \begin{bmatrix} p_w \\ q_w \\ r_w \end{bmatrix} = \begin{bmatrix} 1 & 0 & -\sin\theta \\ 0 & \cos\phi & \cos\theta\sin\phi \\ 0 & -\sin\phi & \cos\theta\cos\phi \end{bmatrix} \begin{bmatrix} \dot{\phi} \\ \dot{\theta} \\ \dot{\psi} \end{bmatrix}
+\end{equation}
+
+Conversely, the inverse mapping from the body angular velocities to the Euler rates is given by:
+\begin{equation}
+\begin{bmatrix} \dot{\phi} \\ \dot{\theta} \\ \dot{\psi} \end{bmatrix} = \begin{bmatrix} 1 & \sin\phi\tan\theta & \cos\phi\tan\theta \\ 0 & \cos\phi & -\sin\phi \\ 0 & \sin\phi\sec\theta & \cos\phi\sec\theta \end{bmatrix} \begin{bmatrix} p_w \\ q_w \\ r_w \end{bmatrix}
+\end{equation}
+
+This inverse kinematic transformation is valid as long as $\theta \neq \pm \pi/2$. The singularity at $\theta = \pm \pi/2$ is known as Gimbal Lock. In standard quadrotor flight, the pitch angle is restricted to prevent this singularity. 
+
+Under the assumption of small-angle perturbations during stable near-hover flight ($\phi \approx 0, \theta \approx 0$), the transformation matrix simplifies to the identity matrix, allowing us to approximate the Euler rates directly as the body angular velocities:
+\begin{equation}
+\begin{bmatrix} \dot{\phi} \\ \dot{\theta} \\ \dot{\psi} \end{bmatrix} \approx \begin{bmatrix} p_w \\ q_w \\ r_w \end{bmatrix} \implies \begin{bmatrix} \ddot{\phi} \\ \ddot{\theta} \\ \ddot{\psi} \end{bmatrix} \approx \begin{bmatrix} \dot{p}_w \\ \dot{q}_w \\ \dot{r}_w \end{bmatrix}
+\end{equation}
+
+\section{3D Translational Dynamics Derivation}
+The translational dynamics of the quadrotor are derived in the Inertial World Frame ($W$) using Newton's second law of motion for a rigid body with constant mass $m$ \cite{ref_59, ref_60}:
+\begin{equation}
+m \ddot{p} = F_G + R F_{Thrust} + F_D
+\end{equation}
+where:
+\begin{itemize}
+    \item $F_G = [0, 0, -mg]^T \in \mathbb{R}^3$ is the gravitational force vector acting along the negative $z$-axis of the Inertial Frame.
+    \item $F_{Thrust} = [0, 0, U_1]^T \in \mathbb{R}^3$ is the total thrust force vector generated by the four propellers, directed along the positive $z$-axis of the Body Frame.
+    \item $F_D \in \mathbb{R}^3$ represents the unmodeled aerodynamic drag forces. In the nominal, disturbance-free model, drag forces are neglected, simplifying the dynamics for nominal control design.
+\end{itemize}
+
+Substituting the rotation matrix $R$ and expanding the force components yields:
+\begin{equation}
+m \begin{bmatrix} \ddot{x} \\ \ddot{y} \\ \ddot{z} \end{bmatrix} = \begin{bmatrix} 0 \\ 0 \\ -mg \end{bmatrix} + \begin{bmatrix} R_{11} & R_{12} & R_{13} \\ R_{21} & R_{22} & R_{23} \\ R_{31} & R_{32} & R_{33} \end{bmatrix} \begin{bmatrix} 0 \\ 0 \\ U_1 \end{bmatrix}
+\end{equation}
+
+Multiplying the rotation matrix $R$ by the thrust vector $[0, 0, U_1]^T$ extracts the third column of the rotation matrix:
+\begin{equation}
+R \begin{bmatrix} 0 \\ 0 \\ U_1 \end{bmatrix} = U_1 \begin{bmatrix} R_{13} \\ R_{23} \\ R_{33} \end{bmatrix} = U_1 \begin{bmatrix} \cos\psi\sin\theta\cos\phi + \sin\psi\sin\phi \\ \sin\psi\sin\theta\cos\phi - \cos\psi\sin\phi \\ \cos\theta\cos\phi \end{bmatrix}
+\end{equation}
+
+Dividing the resulting force components by the quadrotor mass $m$ yields the final second-order translational equations of motion:
+\begin{align}
+\ddot{x} &= \frac{U_1}{m} (\cos\phi \sin\theta \cos\psi + \sin\phi \sin\psi) \\
+\ddot{y} &= \frac{U_1}{m} (\cos\phi \sin\theta \sin\psi - \sin\phi \cos\psi) \\
+\ddot{z} &= \frac{U_1}{m} (\cos\phi \cos\theta) - g
+\end{align}
+
+\subsection{Physical Intuition of Translational Dynamics}
+These translational equations illustrate how a quadrotor generates lateral motion under the constraints of underactuation:
+\begin{itemize}
+    \item The acceleration along the vertical $z$-axis ($\ddot{z}$) is governed by the vertical component of the total thrust, $\frac{U_1}{m}\cos\phi\cos\theta$, opposing gravity. If the vehicle is tilted (non-zero roll $\phi$ or pitch $\theta$), the vertical projection of thrust decreases, requiring the controller to increase $U_1$ to maintain altitude.
+    \item The horizontal accelerations along the $x$ and $y$ axes ($\ddot{x}, \ddot{y}$) are driven by the horizontal projections of the thrust vector. The roll angle $\phi$ and pitch angle $\theta$ act as virtual control inputs that tilt the thrust vector, accelerating the vehicle laterally.
+    \item The yaw angle $\psi$ acts to rotate these horizontal accelerations between the global coordinate axes, coupling the lateral translation to the vehicle's heading.
+\end{itemize}
+
+\section{3D Rotational Dynamics Derivation}
+The rotational dynamics are derived in the Body-Fixed Frame ($B$) using Euler's equations of motion for a rotating rigid body relative to its center of mass \cite{ref_57, ref_60}:
+\begin{equation}
+J \dot{\omega}_B + \omega_B \times (J \omega_B) = \tau_B + \tau_{Gyro}
+\end{equation}
+where $J \in \mathbb{R}^{3 \times 3}$ is the moment of inertia matrix, $\tau_B = [\tau_{\phi}, \tau_{\theta}, \tau_{\psi}]^T \in \mathbb{R}^3$ represents the external control torques, and $\tau_{Gyro}$ represents the gyroscopic moments induced by the rotating propellers.
+
+Assuming the quadrotor possesses a highly symmetric structure about its three principal axes, the off-diagonal products of inertia are negligible, resulting in a diagonal inertia matrix:
+\begin{equation}
+J = \begin{bmatrix} I_{xx} & 0 & 0 \\ 0 & I_{yy} & 0 \\ 0 & 0 & I_{zz} \end{bmatrix}
+\end{equation}
+
+The vector product representing the Coriolis and centripetal gyroscopic coupling moments is expanded as:
+\begin{equation}
+\omega_B \times (J \omega_B) = \begin{bmatrix} p_w \\ q_w \\ r_w \end{bmatrix} \times \begin{bmatrix} I_{xx} p_w \\ I_{yy} q_w \\ I_{zz} r_w \end{bmatrix} = \begin{bmatrix} q_w r_w (I_{zz} - I_{yy}) \\ p_w r_w (I_{xx} - I_{zz}) \\ p_w q_w (I_{yy} - I_{xx}) \end{bmatrix}
+\end{equation}
+
+By substituting the diagonal inertia elements, neglecting the minor gyroscopic rotor moments ($\tau_{Gyro} \approx 0$) for the nominal design, and applying the small-angle approximation where body angular rates equal the Euler rates ($[p_w, q_w, r_w]^T \approx [\dot{\phi}, \dot{\theta}, \dot{\psi}]^T$), we write the rotational dynamics about each body axis:
+\begin{align}
+I_{xx} \ddot{\phi} + (I_{zz} - I_{yy})\dot{\theta}\dot{\psi} &= \tau_{\phi} \\
+I_{yy} \ddot{\theta} + (I_{xx} - I_{zz})\dot{\phi}\dot{\psi} &= \tau_{\theta} \\
+I_{zz} \ddot{\psi} + (I_{yy} - I_{xx})\dot{\phi}\dot{\theta} &= \tau_{\psi}
+\end{align}
+
+Solving for the angular accelerations yields the final second-order rotational equations of motion:
+\begin{align}
+\ddot{\phi} &= \frac{I_{yy} - I_{zz}}{I_{xx}}\dot{\theta}\dot{\psi} + \frac{\tau_{\phi}}{I_{xx}} \\
+\ddot{\theta} &= \frac{I_{zz} - I_{xx}}{I_{yy}}\dot{\phi}\dot{\psi} + \frac{\tau_{\theta}}{I_{yy}} \\
+\ddot{\psi} &= \frac{I_{xx} - I_{yy}}{I_{zz}}\dot{\phi}\dot{\theta} + \frac{\tau_{\psi}}{I_{zz}}
+\end{align}
+
+\subsection{Physical Intuition of Rotational Dynamics}
+These rotational equations represent the physical coupling and gyroscopic interactions that govern the quadrotor's attitude:
+\begin{itemize}
+    \item The first term in each equation represents the gyroscopic torque generated by the vehicle's own rotation \cite{ref_57}. For instance, if the quadrotor has non-zero pitching ($\dot{\theta}$) and yawning ($\dot{\psi}$) velocities, a gyroscopic moment is induced about the roll axis, proportional to $\frac{I_{yy}-I_{zz}}{I_{xx}}$. This cross-coupling becomes highly significant during high-speed, agile maneuvers.
+    \item The second term represents the direct control authority of the actuator inputs. The angular accelerations are inversely proportional to the respective moments of inertia ($I_{xx}, I_{yy}, I_{zz}$). Because a nano-quadrotor like the Crazyflie has extremely small moments of inertia, it exhibits highly sensitive rotational dynamics, requiring high-frequency control loops to maintain stability.
+\end{itemize}
+
+\section{Unified 12-State Space Nonlinear Representation}
+By combining the translational and rotational dynamics, we express the complete 6-DOF quadrotor model as a unified nonlinear system of twelve first-order differential equations. We define the state vector as:
+\begin{equation}
+X = [x, \dot{x}, y, \dot{y}, z, \dot{z}, \phi, \dot{\phi}, \theta, \dot{\theta}, \psi, \dot{\psi}]^T = [x_1, x_2, x_3, x_4, x_5, x_6, x_7, x_8, x_9, x_10, x_{11}, x_{12}]^T
+\end{equation}
+
+The continuous-time state-space system $\dot{X} = F(X, U)$ is formulated as:
+\begin{align}
+\dot{x}_1 &= x_2 \\
+\dot{x}_2 &= \frac{U_1}{m} (\cos x_7 \sin x_9 \cos x_{11} + \sin x_7 \sin x_{11}) \\
+\dot{x}_3 &= x_4 \\
+\dot{x}_4 &= \frac{U_1}{m} (\cos x_7 \sin x_9 \sin x_{11} - \sin x_7 \cos x_{11}) \\
+\dot{x}_5 &= x_6 \\
+\dot{x}_6 &= \frac{U_1}{m} (\cos x_7 \cos x_9) - g \\
+\dot{x}_7 &= x_8 \\
+\dot{x}_8 &= \frac{I_{yy} - I_{zz}}{I_{xx}} x_{10} x_{12} + \frac{1}{I_{xx}} U_2 \\
+\dot{x}_9 &= x_{10} \\
+\dot{x}_{10} &= \frac{I_{zz} - I_{xx}}{I_{yy}} x_8 x_{12} + \frac{1}{I_{yy}} U_3 \\
+\dot{x}_{11} &= x_{12} \\
+\dot{x}_{12} &= \frac{I_{xx} - I_{yy}}{I_{zz}} x_8 x_{10} + \frac{1}{I_{zz}} U_4
+\end{align}
+
+where the control input vector $U = [U_1, U_2, U_3, U_4]^T =^T$ consists of the total vertical thrust and the three body torques. This unified state-space representation captures the complete nonlinear dynamics and cross-coupling of the quadrotor system, providing the mathematical foundation used in Chapter \ref{ch:sys_desc} to synthesize and prove the stability of the robust sliding-mode and terminal sliding-mode control laws.
+
+% what is a dynamical system \\
+% how to describe it \\
+% ways to derive dynamics - state space, transfer function\\
+% description of quadrotor dynamics \\
+% derivation of 2D dynamics \\
+% derivation of 3D dynamics with explanation \\
+% final equations of motion \\

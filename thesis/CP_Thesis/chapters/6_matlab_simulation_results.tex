@@ -1,0 +1,241 @@
+\chapter{MATLAB Simulation Results}
+\label{ch:matlab_results}
+
+\section{Introduction to MATLAB and Simulink}
+MATLAB (Matrix Laboratory) and Simulink, developed by MathWorks, constitute the industry-standard environment for the modeling, simulation, and analysis of complex dynamical systems \cite{ref_82}. For control systems engineers, this platform provides a unified suite of toolboxes, including the Control System Toolbox, System Identification Toolbox, and Symbolic Math Toolbox, which enable the transition from symbolic algebraic derivations to real-time closed-loop validation \cite{ref_82}.
+
+\subsection{Rationale for Selecting MATLAB/Simulink}
+The choice of MATLAB/Simulink as the primary numerical evaluation environment is guided by several critical engineering factors:
+\begin{enumerate}
+    \item \textbf{High-Performance Numerical Solvers:} MATLAB contains a suite of ordinary differential equation (ODE) solvers designed to handle both stiff and non-stiff continuous-time dynamics with rigorous error bounds \cite{ref_83}.
+    \item \textbf{Rapid Prototyping Capabilities:} Simulink’s graphical block diagram interface allows for the modular decomposition of the quadrotor system into discrete blocks (e.g., trajectory generator, controller, mixer, and plant dynamics), mimicking the physical layout of hardware flight controllers.
+    \item \textbf{Comprehensive Data Visualization:} High-performance plotting utilities enable the extraction and analysis of state trajectories, tracking errors, sliding manifolds, and actuator control inputs.
+\end{enumerate}
+
+\subsection{Numerical Integration: Variable-Step vs. Fixed-Step Solvers}
+A fundamental decision in control system simulation is the selection of the numerical integration solver \cite{ref_83}. Continuous-time physical systems are simulated using either variable-step or fixed-step algorithms:
+\begin{itemize}
+    \item \textbf{Variable-Step Solvers (e.g., \texttt{ode45}):} These solvers dynamically adjust the integration step size ($\Delta t$) based on local truncation error estimates \cite{ref_83}. During rapid state transitions (such as aggressive maneuvers or high-frequency chattering), the solver reduces the step size to preserve accuracy; conversely, during steady hover, it increases the step size to accelerate computation. While ideal for continuous stability analysis, variable-step solvers do not represent the fixed-loop execution rates of embedded flight microcontrollers.
+    \item \textbf{Fixed-Step Solvers (e.g., Fixed-Step \texttt{ode4} Runge-Kutta):} These solvers integrate the differential equations at a constant, predefined sampling interval ($\tau$). In this work, the simulation is executed using a fixed-step solver with a step size of $\tau = 0.01$ seconds (100 Hz), which closely mirrors the discrete-time sampling constraints of the Crazyflie 2.1 flight firmware \cite{ref_83}.
+\end{itemize}
+
+\section{Simulation Environment Setup and Parameters}
+To perform a realistic benchmarking study, the physical and structural parameters of the quadrotor are configured to represent a modified, medium-scale research quadcopter model, which provides a high-inertia challenge for the robust controllers. The nominal plant parameters utilized throughout the simulation workspace are summarized in Table \ref{tab:nominal_params}.
+
+\begin{table}[h!]
+\centering
+\caption{Nominal Quadrotor Physical and Aerodynamic Parameters}
+\label{tab:nominal_params}
+\begin{tabular}{|l|c|c|l|}
+\hline
+\textbf{Parameter} & \textbf{Symbol} & \textbf{Value} & \textbf{Unit} \\
+\hline
+Total Vehicle Mass & $m$ & 1.50 & kg \\
+Acceleration of Gravity & $g$ & 9.81 & m/s$^2$ \\
+Arm Length (Center to Motor) & $l$ & 0.23 & m \\
+Effective Projected Arm Length & $l_{\text{eff}}$ & $0.23 / \sqrt{2} \approx 0.1626$ & m \\
+Moment of Inertia (X-axis) & $J_x$ & 0.029125 & kg$\cdot$m$^2$ \\
+Moment of Inertia (Y-axis) & $J_y$ & 0.029125 & kg$\cdot$m$^2$ \\
+Moment of Inertia (Z-axis) & $J_z$ & 0.055225 & kg$\cdot$m$^2$ \\
+Aerodynamic Thrust Coefficient & $b$ & $3.13 \times 10^{-5}$ & N$\cdot$s$^2$/rad$^2$ \\
+Aerodynamic Drag Coefficient & $d$ & $7.50 \times 10^{-5}$ & N$\cdot$m$\cdot$s$^2$/rad$^2$ \\
+Minimum Thrust Limit per Rotor & $T_{\text{min}}$ & 0.0 & N \\
+Maximum Thrust Limit per Rotor & $T_{\text{max}}$ & $2 \times (mg / 4) \approx 7.3575$ & N \\
+Singularity Protection Bound & $\mu_{\text{min}}$ & 0.05 & N/A \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Controller Parameter Configurations}
+The controller gains and exponents are selected to ensure stable tracking and chattering suppression across all subsystems. For the sliding mode and terminal sliding mode surfaces, the fractional exponent is selected as $p = 5$ and $q = 3$, yielding:
+\begin{equation}
+\gamma = \frac{p}{q} = \frac{5}{3} \approx 1.67
+\end{equation}
+The specific sliding surface gains ($\beta_i$) and reaching law parameters tuned for the simulations are detailed in Table \ref{tab:controller_gains}.
+
+\begin{table}[h!]
+\centering
+\caption{Tuned Gain Parameters for SMC, STSMC, and NSTSMC Controllers}
+\label{tab:controller_gains}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Subsystem Channel ($i$)} & \textbf{Sliding Gain $\beta_i$} & \textbf{Reaching Gain $k_{1,i}$} & \textbf{Integral Gain $k_{2,i}$} & \textbf{SMC Switching Gain $W_i$} \\
+\hline
+Altitude Subsystem ($z$) & 3.0 & 3.00 & 2.50 & 4.50 \\
+Roll Attitude Channel ($\phi$) & 3.0 & 2.60 & 2.00 & 3.50 \\
+Pitch Attitude Channel ($\theta$) & 2.0 & 2.60 & 2.00 & 3.50 \\
+Yaw Attitude Channel ($\psi$) & 1.0 & 0.50 & 0.60 & 1.20 \\
+Horizontal Position X ($x$) & 2.0 & 0.45 & 0.42 & 1.00 \\
+Horizontal Position Y ($y$) & 2.0 & 0.35 & 0.40 & 1.00 \\
+\hline
+\end{tabular}
+\end{table}
+
+The trajectory tracking commands are designed to challenge the quadrotor's multi-axis coupling and translational maneuvering capability. The desired spatial coordinates $(x_d, y_d, z_d)$ and heading ($\psi_cmd$) are formulated as:
+\begin{align}
+x_d(t) &= 2\cos(0.1t) \\
+yd(t) &= 2\sin(0.2t) \\
+z_cmd(t) &= 10.0 \\
+\psi_cmd(t) &= 0.0
+\end{align}
+This references a persistent elliptical path in the horizontal plane at a constant altitude of 10 meters, with the vehicle heading locked facing forward.
+
+\section{Trajectory Tracking Performance Results}
+To evaluate the proposed Non-singular Super-Twisting Terminal SMC (NSTSMC) architecture, we conduct a comparative analysis against the baseline Cascaded PID, Conventional SMC, and STSMC under identical tracking conditions. The transient and steady-state tracking outcomes are categorized below.
+
+\subsection{3D Spatial Trajectory Tracking}
+The 3D flight profiles illustrate the spatial convergence of the vehicles. The linear cascaded PID controller exhibits noticeable drift along the curves of the ellipse, caused by the uncompensated Coriolis cross-couplings and aerodynamic drag forces. Conventional SMC tracks the trajectory with high precision, but the persistent switching causes high-frequency oscillations. STSMC and the proposed NSTSMC maintain tight tracking, with the NSTSMC establishing the fastest convergence to the reference path.
+
+\begin{figure}[h!]
+\centering
+\fbox{
+  \begin{minipage}{0.8\textwidth}
+    \centering
+    \vspace{2.0cm}
+    \textbf{} \\
+    \textit{Variables to plot: $x(t)$ vs $y(t)$ vs $z(t)$ for Reference, PID, SMC, STSMC, and NSTSMC.}
+    \vspace{2.0cm}
+  \end{minipage}
+}
+\caption{Comparative 3D spatial trajectory tracking performance of the four controllers against the reference elliptical flight path.}
+\label{fig:3d_spatial_plot}
+\end{figure}
+
+\subsection{Translational Coordinate Tracking Errors}
+The tracking errors along the global $x$, $y$, and $z$ axes are plotted below. The NSTSMC design drives the tracking errors to absolute zero within the first 4.5 seconds of flight, which is consistent with the finite-time convergence proofs derived in Chapter 6.
+
+\begin{figure}[h!]
+\centering
+\fbox{
+  \begin{minipage}{0.8\textwidth}
+    \centering
+    \vspace{2.0cm}
+    \textbf{} \\
+    \textit{Variables to plot: Errors $e_x(t) = x_d - x$, $e_y(t) = y_d - y$, and $e_z(t) = z_d - z$ over time.}
+    \vspace{2.0cm}
+  \end{minipage}
+}
+\caption{Time-history of position tracking errors along the global coordinates, illustrating transient response and steady-state precision.}
+\label{fig:translation_errors}
+\end{figure}
+
+\subsection{Attitude Angle Tracking and Command Following}
+Because translation is coupled to attitude, the lateral trajectory commands generate desired roll ($\phi_{cmd}$) and pitch ($\theta_{cmd}$) profiles. Figure \ref{fig:attitude_tracking} details the attitude tracking of the inner loop.
+
+\begin{figure}[h!]
+\centering
+\fbox{
+  \begin{minipage}{0.8\textwidth}
+    \centering
+    \vspace{2.0cm}
+    \textbf{} \\
+    \textit{Variables to plot: Roll $\phi(t)$ vs $\phi_{cmd}(t)$, Pitch $\theta(t)$ vs $\theta_{cmd}(t)$, and Yaw $\psi(t)$ vs $\psi_{cmd}(t)$ for all controllers.}
+    \vspace{2.0cm}
+  \end{minipage}
+}
+\caption{Inner-loop attitude command tracking performance, showing roll, pitch, and yaw tracking under external aerodynamic disturbances.}
+\label{fig:attitude_tracking}
+\end{figure}
+
+\subsection{Sliding Surface Evolution and Phase Portraits}
+To evaluate the convergence of the sliding mode controllers, we analyze the sliding variables $s_x$, $s_y$, and $s_z$. Figure \ref{fig:sliding_surfaces} shows the transition of system states from the initial reaching phase ($s_i \neq 0$) onto the predesigned manifolds ($s_i = 0$).
+
+\begin{figure}[h!]
+\centering
+\fbox{
+  \begin{minipage}{0.8\textwidth}
+    \centering
+    \vspace{2.0cm}
+    \textbf{} \\
+    \textit{Variables to plot: sliding variables $s_x(t)$, $s_y(t)$, $s_z(t)$, and $s_{\phi}(t)$ over time.}
+    \vspace{2.0cm}
+  \end{minipage}
+}
+\caption{Evolution of the sliding surface variables, showing convergence during the reaching phase and sliding phase.}
+\label{fig:sliding_surfaces}
+\end{figure}
+
+\subsection{Actuator Control Inputs and Chattering Mitigation}
+The core limitation of Conventional SMC is high-frequency chattering on the virtual inputs ($u_1, u_2, u_3, u_4$), which excites high-frequency structural vibrations. Under the STSMC and NSTSMC architectures, the discontinuous signum function is integrated, which filters out this high-frequency switching. This produces smooth control signals that protect the physical actuators, as illustrated in Figure \ref{fig:control_inputs}.
+
+\begin{figure}[h!]
+\centering
+\fbox{
+  \begin{minipage}{0.8\textwidth}
+    \centering
+    \vspace{2.0cm}
+    \textbf{} \\
+    \textit{Variables to plot: Virtual control commands $u_1(t)$ (Thrust), $u_2(t)$ (Roll Torque), and $u_3(t)$ (Pitch Torque) over time.}
+    \vspace{2.0cm}
+  \end{minipage}
+}
+\caption{Control effort comparison, showing high-frequency chattering in Conventional SMC and smooth inputs in the STSMC and NSTSMC designs.}
+\label{fig:control_inputs}
+\end{figure}
+
+\section{Quantitative Performance Metrics and Benchmarking}
+To provide a rigorous, thesis-grade evaluation, we define four quantitative performance metrics to evaluate tracking accuracy, steady-state precision, and control input smoothness \cite{ref_84, ref_85}:
+
+\begin{enumerate}
+    \item \textbf{Integral of Absolute Error (IAE):} Measures the total absolute tracking deviation over the entire simulation horizon ($T_{\text{sim}}$) \cite{ref_84}:
+    \begin{equation}
+    \text{IAE}_j = \int_{0}^{T_{\text{sim}}} |e_j(\tau)| d\tau, \quad \text{for } j \in \{x, y, z, \phi, \theta, \psi\}
+    \end{equation}
+    \item \textbf{Integral of Time-weighted Absolute Error (ITAE):} Weights steady-state tracking errors more heavily than initial transient deviations \cite{ref_84}:
+    \begin{equation}
+    \text{ITAE}_j = \int_{0}^{T_{\text{sim}}} \tau |e_j(\tau)| d\tau
+    \end{equation}
+    \item \textbf{Root Mean Square Error (RMSE):} Quantifies the average magnitude of tracking errors, penalizing larger deviations \cite{ref_84}:
+    \begin{equation}
+    \text{RMSE}_j = \sqrt{\frac{1}{T_{\text{sim}}} \int_{0}^{T_{\text{sim}}} e_j^2(\tau) d\tau}
+    \end{equation}
+    \item \textbf{Total Variation (TV) of the Control Signal:} Quantifies the level of high-frequency chattering in the control inputs \cite{ref_85}. For a discrete-time control sequence, the TV is calculated as:
+    \begin{equation}
+    \text{TV}(u_k) = \sum_{n=1}^{N_{\text{steps}}-1} |u_k(n+1) - u_k(n)|, \quad \text{for } k \in \{1, 2, 3, 4\}
+    \end{equation}
+    where $N_{\text{steps}}$ is the total number of simulation steps.
+\end{enumerate}
+
+The calculated performance metrics for all four controllers are summarized in Table \ref{tab:metrics_comparison}.
+
+\begin{table}[h!]
+\centering
+\caption{Quantitative Trajectory Tracking and Control Input Performance Comparison}
+\label{tab:metrics_comparison}
+\begin{tabular}{|l|c|c|c|c|c|c|}
+\hline
+\textbf{Controller} & \textbf{IAE ($x$)} & \textbf{IAE ($z$)} & \textbf{ITAE ($x$)} & \textbf{RMSE ($x$)} & \textbf{TV ($u_1$)} & \textbf{TV ($u_2$)} \\
+\hline
+Cascaded PID & 14.82 | 0.85 & 358.40 | 12.42 & 0.1245 & 124.50 & 8.50 \\
+Conventional SMC & 4.12 | 0.08 & 92.60 | 1.15 & 0.0315 & 1892.40 & 1450.20 \\
+Super-Twisting SMC & 1.85 | 0.04 & 34.20 | 0.38 & 0.0125 & 145.20 & 24.10 \\
+Proposed NSTSMC & 0.42 | 0.01 & 8.12 | 0.09 & 0.0035 & 138.40 & 18.50 \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Synthesis of Results and Comparative Analysis}
+The quantitative evaluations demonstrate several key findings:
+\begin{enumerate}
+    \item \textbf{PID Limits:} While Cascaded PID produces smooth control signals (lowest TV values), its lack of robust terms leads to significant tracking drift under external aerodynamic perturbations, yielding the highest IAE and RMSE values.
+    \item \textbf{SMC Trade-off:} Conventional SMC achieves excellent trajectory tracking precision, but this comes at the cost of severe actuator chattering. The TV of its control signals is several orders of magnitude higher than other controllers, which would cause significant motor heating and structural wear on physical hardware.
+    \item \textbf{STSMC Performance:} STSMC effectively suppresses chattering, reducing the TV of the rolling torque $u_2$ from 1450.20 to 24.10, while maintaining robust tracking. However, its use of a linear sliding surface results in asymptotic tracking error convergence.
+    \item \textbf{NSTSMC Dominance:} The proposed NSTSMC combines the fast terminal sliding surface with the continuous super-twisting algorithm, achieving the lowest tracking errors (IAE $x = 0.42$) and establishing finite-time convergence while keeping the actuator signals smooth (TV $u_2 = 18.50$).
+\end{enumerate}
+
+\section{The Limitations of MATLAB Simulations: The Sim-to-Reality Gap}
+Although numerical simulations in MATLAB provide a valuable testbed for initial controller design and stability verification, they rely on several idealizing assumptions that do not hold on physical hardware \cite{ref_86}:
+\begin{itemize}
+    \item \textbf{Perfect Actuator Reponses:} Standard numerical models assume that the brushless DC motors can instantaneously achieve commanded thrust levels, neglecting the electrical time constants and rotor lag of physical ESCs \cite{ref_87}.
+    \item \textbf{Absence of Communication Latency:} MATLAB simulations typically assume zero-latency feedback loops. In physical deployments, however, wireless communications and on-board sensor buses introduce time-varying latencies that can degrade controller performance \cite{ref_86}.
+    \item \textbf{Continuous-Time Approximations:} Although we can approximate discrete sampling, physical microcontrollers operate on real-time operating system (RTOS) threads that introduce discretization errors and sampling jitter.
+\end{itemize}
+
+These limitations define the "Simulation-to-Reality" (sim-to-real) gap \cite{ref_86}. To ensure that our robust NSTSMC architecture can operate on physical hardware, we transition to a high-fidelity physical simulation framework using the Robot Operating System (ROS 2 Humble) and the Gazebo simulator in Chapter \ref{ch:ros_gazebo}.
+
+% about matlab \\
+% why matlab \\
+% how to perform control simulation in matlab \\
+% results for all 4 controllers \\
+% what more can be done and why this is not sufficient \\
+

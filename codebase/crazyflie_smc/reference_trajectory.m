@@ -43,20 +43,20 @@ function p = reference_trajectory(p)
 %   r = 0.5 m, omega = 0.3 rad/s  =>  period ≈ 21 s, v_max = 0.15 m/s
 %   Centripetal accel = r*omega^2 = 0.045 m/s^2  =>  phi_des ≈ 0.26 deg
 % ════════════════════════════════════════════════════════════════════
-    r     = 0.5;    % radius (m)
-    omega = 0.3;    % angular rate (rad/s)
-    z0    = 0.5;    % hover altitude (m)
-
-    p.x_des = @(t)  r * cos(omega * t);
-    p.y_des = @(t)  r * sin(omega * t);
-
-    p.z_des         = @(t)  z0 + 0*t;
-    p.zd_dot_des    = @(t)  0 * t;
-    p.zd_ddot_des   = @(t)  0 * t;
-
-    p.psi_des       = @(t)  0 * t;
-    p.psid_dot_des  = @(t)  0 * t;
-    p.psid_ddot_des = @(t)  0 * t;
+    % r     = 0.5;    % radius (m)
+    % omega = 0.3;    % angular rate (rad/s)
+    % z0    = 0.5;    % hover altitude (m)
+    % 
+    % p.x_des = @(t)  r * cos(omega * t);
+    % p.y_des = @(t)  r * sin(omega * t);
+    % 
+    % p.z_des         = @(t)  z0 + 0*t;
+    % p.zd_dot_des    = @(t)  0 * t;
+    % p.zd_ddot_des   = @(t)  0 * t;
+    % 
+    % p.psi_des       = @(t)  0 * t;
+    % p.psid_dot_des  = @(t)  0 * t;
+    % p.psid_ddot_des = @(t)  0 * t;
 
 
 % ════════════════════════════════════════════════════════════════════
@@ -85,18 +85,31 @@ function p = reference_trajectory(p)
 %   zd    = 0.5 m  (constant)
 %   Ax = Ay = 0.4 m,  omega = 0.1 rad/s  =>  v_max ≈ 0.08 m/s
 % ════════════════════════════════════════════════════════════════════
-    % Ax = 0.4;   Ay = 0.4;   omega_f = 0.1;
-    %
+    % Ax = 0.4;   Ay = 0.4;   omega_f = 0.2;
+    % 
     % p.x_des = @(t)  Ax * cos(omega_f * t);
     % p.y_des = @(t)  Ay * sin(2 * omega_f * t);
-    %
+    % 
     % p.z_des         = @(t)  0.5 + 0*t;
     % p.zd_dot_des    = @(t)  0 * t;
     % p.zd_ddot_des   = @(t)  0 * t;
-    %
+    % 
     % p.psi_des       = @(t)  0 * t;
     % p.psid_dot_des  = @(t)  0 * t;
     % p.psid_ddot_des = @(t)  0 * t;
+
+    Ax = 0.4;   Ay = 0.4;   omega_f = 0.2;
+
+    p.x_des = @(t)  Ax * sin(2 * omega_f * t);
+    p.y_des = @(t)  Ay * sin(omega_f * t);
+
+    p.z_des         = @(t)  0.5 + ones(size(t));
+    p.zd_dot_des    = @(t)  zeros(size(t));
+    p.zd_ddot_des   = @(t)  zeros(size(t));
+
+    p.psi_des       = @(t)  0 * t;
+    p.psid_dot_des  = @(t)  0 * t;
+    p.psid_ddot_des = @(t)  0 * t;
 
 
 % ════════════════════════════════════════════════════════════════════

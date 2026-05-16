@@ -1,0 +1,58 @@
+\chapter{Conclusion}
+\label{ch:conclusion}
+
+\section{Summary of the Thesis}
+This thesis has presented a systematic journey through the modeling, design, simulation, and high-fidelity validation of robust nonlinear flight control systems for autonomous nano-quadrotors. Motivated by the physical limitations of classical linear control and the hardware-taxing chattering of conventional sliding mode control, this research investigated successive control paradigms culminating in a unified, non-singular, second-order robust control architecture.
+
+The research initiated with a first-principles derivation of the complete six-degree-of-freedom (6-DOF) quadrotor dynamics utilizing Newton-Euler formalisms. This 12-state nonlinear state-space representation successfully captured the complex rotational Coriolis forces, gyroscopic coupling moments, and underactuated translational dynamics of the vehicle. This mathematical framework established a rigorous basis for the synthesis of the flight control loops.
+
+A hierarchical, cascaded control topology was adopted to close the loop, separating the slower outer translational loop (position tracking) from the faster inner rotational loop (attitude stabilization). To evaluate the performance trade-offs, four control strategies were designed, derived, and tested:
+\begin{enumerate}
+    \item \textbf{Cascaded PID Controller:} Served as the linear baseline, utilizing decoupled PID loops with gravitational feedforward compensation.
+    \item \textbf{Conventional Sliding Mode Control (SMC):} Introduced robust matched disturbance rejection by enforcing system trajectories onto a linear sliding manifold.
+    \item \textbf{Super-Twisting Sliding Mode Control (STSMC):} Mitigated actuator chattering by integrating the discontinuous switching action, producing smooth virtual commands.
+    \item \textbf{Non-singular Super-Twisting Terminal SMC (NSTSMC):} Integrated the chattering-free continuous reaching dynamics of the Super-Twisting Algorithm with a non-singular terminal sliding manifold, ensuring finite-time convergence of tracking errors to absolute zero without singularity risks.
+\end{enumerate}
+
+To bridge the "Simulation-to-Reality" (sim-to-real) gap, a dual-platform validation workspace was established. The controllers were first evaluated numerically in MATLAB/Simulink using a fixed-step Runge-Kutta fourth-order solver. Subsequently, they were ported to a high-fidelity physical simulation framework using the Robot Operating System (ROS 2 Humble) and the Gazebo Classic 11 simulator. The vehicle was emulated using a physical Crazyflie 2.1 model, subjecting the controllers to realistic actuator delay, sensor noise, wind shear, and abrupt rotor loss of effectiveness (LOE) faults.
+
+\section{Key Contributions and Findings}
+The key contributions and research outcomes of this thesis are summarized as follows:
+\begin{itemize}
+    \item \textbf{Unified Physical Modeling:} Derived a comprehensive 12-state state-space model that represents the flight dynamics of the Crazyflie 2.1 platform, incorporating physical moments of inertia and rotor thrust-to-PWM characteristics.
+    \item \textbf{Singularity-Free Finite-Time Control:} Synthesized and proved the closed-loop tracking stability of the NSTSMC law using rigorous Lyapunov-based stability criteria, demonstrating absolute singularity avoidance by placing the fractional exponent on the velocity tracking error rather than the position tracking error.
+    \item \textbf{Significant Chattering Reduction:} Confirmed that the second-order super-twisting integration mechanism reduces the high-frequency chattering on the virtual torque inputs. Quantitative Total Variation (TV) analysis showed a chattering amplitude reduction of over 98.6\% compared to conventional first-order SMC.
+    \item \textbf{Fast, Finite-Time Convergence:} Benchmarked that the terminal sliding manifold drives the tracking errors to absolute zero in finite time, improving position tracking precision in elliptical and figure-8 trajectories by over 96\% compared to Cascaded PID.
+    \item \textbf{Fault-Tolerant Stabilization:} Demonstrated the robust margin of the NSTSMC by successfully rejecting a sudden 50\% loss of effectiveness (LOE) fault injected on Rotor 1 during aggressive maneuvering, maintaining stable flight where Cascaded PID experienced severe altitude loss and attitude oscillations.
+    \item \textbf{Dual-Platform Middleware Integration:} Developed a modular ROS 2 workspace separating the control logic (\texttt{cf\_trajectory\_controller}) from the Gazebo physics assets (\texttt{crazyflie\_gazebo\_sim}), establishing a high-frequency, multi-threaded simulation pipeline that matches physical hardware execution constraints.
+\end{itemize}
+
+\section{Review of Controller Achievements}
+A quantitative review of the four flight control strategies under wind disturbances and rotor fault injection is summarized in Table \ref{tab:final_comparison}.
+
+\begin{table}[h!]
+\centering
+\caption{Consolidated Controller Performance Evaluation in Gazebo}
+\label{tab:final_comparison}
+\begin{tabular}{|l|c|c|c|l|}
+\hline
+\textbf{Controller} & \textbf{RMSE ($x$)} & \textbf{TV ($u_2$)} & \textbf{Fault Recovery (s)} & \textbf{Hardware Feasibility} \\
+\hline
+Cascaded PID & 0.1852 m & 9.40 & Unstable / Failed & High (Linear, low CPU) \\
+Conventional SMC & 0.0412 m & 1640.50 & 0.95 s & Low (Severe motor wear) \\
+Super-Twisting SMC & 0.0185 m & 28.20 & 1.45 s & High (Continuous, robust) \\
+Proposed NSTSMC & \textbf{0.0052 m} & \textbf{21.40} & \textbf{0.85 s} & High (Optimal tracking, smooth) \\
+\hline
+\end{tabular}
+\end{table}
+
+The benchmarking data confirms that the proposed NSTSMC achieves the optimal balance between tracking accuracy and actuator efficiency. It delivers the lowest root mean square error (RMSE of 5.2 mm) and the fastest fault recovery (0.85 s) while maintaining a smooth control effort (Total Variation of 21.40) comparable to the linear PID baseline.
+
+\section{Recommendations for Future Work}
+While this thesis has established a robust robust control pipeline, several open challenges remain to be explored in future extensions of this research:
+\begin{enumerate}
+    \item \textbf{Active State and Disturbance Observers:} To reduce the conservative nature of high switching gains, future architectures should integrate **Extended State Observers (ESOs)** or **Higher-Order Sliding Mode Observers (HOSMOs)**. Estimating and compensating for the lumped matched and unmatched perturbations in real-time will allow the robust sliding mode gains to be minimized, completely eliminating residual chattering.
+    \item \textbf{Meta-Heuristic Parameter Optimization:} Implement online adaptive gain laws that dynamically tune the sliding variables ($\beta_i$) and reaching coefficients ($k_{1,i}, k_{2,i}$) using Particle Swarm Optimization (PSO) or Genetic Algorithms (GA) to optimize flight efficiency under varying load conditions.
+    \item \textbf{Active Fault-Tolerant Control Allocation:} Couple the robust control laws with a dedicated **Fault Detection and Isolation (FDI)** module. In the event of a complete (100\%) motor failure, the control allocator should dynamically redistribute the remaining control authority among the three healthy rotors to execute a safe, controlled emergency landing.
+    \item \textbf{Zero-Shot Physical Deployment:} Port the Python-designed control loops into highly optimized C++ code directly inside the Crazyflie 2.1 STM32F405 firmware. Testing the algorithms on actual physical drones in a motion capture laboratory will expose the controllers to real sensor noise, communication latencies, and battery voltage decay, completing the physical sim-to-real transfer.
+\end{enumerate}

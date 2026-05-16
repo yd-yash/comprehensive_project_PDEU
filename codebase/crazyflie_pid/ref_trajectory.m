@@ -56,30 +56,30 @@ function params = ref_trajectory(params)
 %   y(t) = 0.5*sin(0.3*t)
 %   z(t) = 0.5  (constant hover altitude)
 
-    r     = 0.5;     % radius (m)
-    omega = 0.3;     % angular rate (rad/s)
-    z0    = 0.5;     % hover altitude (m)
-
-    params.x_des = @(t)  r * cos(omega*t);
-    params.y_des = @(t)  r * sin(omega*t);
-    params.z_des = @(t)  z0 * ones(size(t));
-
-    params.x_dot_des = @(t) -r*omega *  sin(omega*t);
-    params.y_dot_des = @(t)  r*omega *  cos(omega*t);
-    params.z_dot_des = @(t)  zeros(size(t));
-
-    params.x_ddot_des = @(t) -r*omega^2 * cos(omega*t);
-    params.y_ddot_des = @(t) -r*omega^2 * sin(omega*t);
-    params.z_ddot_des = @(t)  zeros(size(t));
-
-    % Jerk
-    %   x_dddot = d/dt(-r*omega^2*cos(omega*t)) =  r*omega^3*sin(omega*t)
-    %   y_dddot = d/dt(-r*omega^2*sin(omega*t)) = -r*omega^3*cos(omega*t)
-    params.x_dddot_des = @(t)  r*omega^3 * sin(omega*t);
-    params.y_dddot_des = @(t) -r*omega^3 * cos(omega*t);
-
-    params.psi_des = @(t)  zeros(size(t));
-    params.psi_ref = @(t)  zeros(size(t));
+    % r     = 0.5;     % radius (m)
+    % omega = 0.3;     % angular rate (rad/s)
+    % z0    = 0.5;     % hover altitude (m)
+    % 
+    % params.x_des = @(t)  r * cos(omega*t);
+    % params.y_des = @(t)  r * sin(omega*t);
+    % params.z_des = @(t)  z0 * ones(size(t));
+    % 
+    % params.x_dot_des = @(t) -r*omega *  sin(omega*t);
+    % params.y_dot_des = @(t)  r*omega *  cos(omega*t);
+    % params.z_dot_des = @(t)  zeros(size(t));
+    % 
+    % params.x_ddot_des = @(t) -r*omega^2 * cos(omega*t);
+    % params.y_ddot_des = @(t) -r*omega^2 * sin(omega*t);
+    % params.z_ddot_des = @(t)  zeros(size(t));
+    % 
+    % % Jerk
+    % %   x_dddot = d/dt(-r*omega^2*cos(omega*t)) =  r*omega^3*sin(omega*t)
+    % %   y_dddot = d/dt(-r*omega^2*sin(omega*t)) = -r*omega^3*cos(omega*t)
+    % params.x_dddot_des = @(t)  r*omega^3 * sin(omega*t);
+    % params.y_dddot_des = @(t) -r*omega^3 * cos(omega*t);
+    % 
+    % params.psi_des = @(t)  zeros(size(t));
+    % params.psi_ref = @(t)  zeros(size(t));
 
 
 % TRAJECTORY 3: Helix (indoor scale)
@@ -110,26 +110,26 @@ function params = ref_trajectory(params)
 % TRAJECTORY 4: Figure-8 (indoor Lissajous)
 %   Ax = Ay = 0.4 m, omega = 0.2 rad/s  =>  period ~ 31 s
 %
-    % Ax    = 0.4;
-    % Ay    = 0.4;
-    % omega = 0.2;
-    % 
-    % params.x_des = @(t)  Ax * sin(2*omega*t);
-    % params.y_des = @(t)  Ay * sin(  omega*t);
-    % params.z_des = @(t)  0.5 * ones(size(t));
-    % 
-    % params.x_dot_des = @(t)  2*Ax*omega * cos(2*omega*t);
-    % params.y_dot_des = @(t)    Ay*omega * cos(  omega*t);
-    % params.z_dot_des = @(t)  zeros(size(t));
-    % 
-    % params.x_ddot_des = @(t) -4*Ax*omega^2 * sin(2*omega*t);
-    % params.y_ddot_des = @(t) -  Ay*omega^2 * sin(  omega*t);
-    % params.z_ddot_des = @(t)  zeros(size(t));
-    % 
-    % params.x_dddot_des = @(t) -8*Ax*omega^3 * cos(2*omega*t);
-    % params.y_dddot_des = @(t) -  Ay*omega^3 * cos(  omega*t);
-    % 
-    % params.psi_des = @(t)  zeros(size(t));
-    % params.psi_ref = @(t)  zeros(size(t));
+    Ax    = 0.4;
+    Ay    = 0.4;
+    omega = 0.2;
+
+    params.x_des = @(t)  Ax * sin(2*omega*t);
+    params.y_des = @(t)  Ay * sin(  omega*t);
+    params.z_des = @(t)  0.5 * ones(size(t));
+
+    params.x_dot_des = @(t)  2*Ax*omega * cos(2*omega*t);
+    params.y_dot_des = @(t)    Ay*omega * cos(  omega*t);
+    params.z_dot_des = @(t)  zeros(size(t));
+
+    params.x_ddot_des = @(t) -4*Ax*omega^2 * sin(2*omega*t);
+    params.y_ddot_des = @(t) -  Ay*omega^2 * sin(  omega*t);
+    params.z_ddot_des = @(t)  zeros(size(t));
+
+    params.x_dddot_des = @(t) -8*Ax*omega^3 * cos(2*omega*t);
+    params.y_dddot_des = @(t) -  Ay*omega^3 * cos(  omega*t);
+
+    params.psi_des = @(t)  zeros(size(t));
+    params.psi_ref = @(t)  zeros(size(t));
 
 end

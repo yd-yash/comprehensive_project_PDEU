@@ -4,13 +4,14 @@
 % Control: Cascaded PID (swap controller function to change strategy)
 % Fault: Rotor T1 actuator fault with reduced control allocation
 
-clc; clear; close all;
+% clc; clear; close all;
 
 % parameters 
 params = parameters();
 
 % reference trajectory 
-params = ref_trajectory(params);
+% params = ref_trajectory(params);
+params = rt_thesis(params);
 
 % initial conditions
 % State: [x y z phi theta psi x_dot y_dot z_dot phi_dot theta_dot psi_dot
@@ -18,7 +19,7 @@ params = ref_trajectory(params);
 x0 = zeros(18, 1);
 
 % simulation parameters
-T     = 30;
+T     = 40;
 tspan = linspace(0, T, 3000);
 
 fprintf('Running simulation...\n');
@@ -33,8 +34,11 @@ fprintf('Simulation complete.\n');
 % quadrotor3D_animate(t, x);
 
 % performance metrics
-performance_metrics(t, logs.ex, logs.ey, logs.ez, ...
+% performance_metrics(t, logs.ex, logs.ey, logs.ez, ...
+%                        logs.ephi, logs.etheta, logs.epsi);
+pm_thesis(t, logs.ex, logs.ey, logs.ez, ...
                        logs.ephi, logs.etheta, logs.epsi);
 
 % plots
-plot_results(t, x, logs, params);
+% plot_results(t, x, logs, params);
+plots_thesis(t, x, logs, params);

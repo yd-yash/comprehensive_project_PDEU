@@ -1,0 +1,246 @@
+\chapter{Introduction}
+\label{ch:intro}
+
+\section{Executive Summary}
+This chapter provides a comprehensive introduction to the foundational concepts, historical development, and research motivations governing the control of autonomous quadrotor Unmanned Aerial Vehicles (UAVs). We begin with a rigorous overview of classical and robust control paradigms, exploring the theoretical transition from linear proportional-integral-derivative (PID) architectures to robust nonlinear controllers. We then delve deeply into the theory of Variable Structure Systems (VSS) and Sliding Mode Control (SMC), highlighting both its matched disturbance rejection capabilities and its historical challenges, such as the high-frequency chattering phenomenon. This is followed by a detailed review of second-order sliding mode techniques—specifically the Super-Twisting Algorithm (STA)—and finite-time terminal sliding mode manifolds, detailing how non-singular terminal sliding mode control (NTSMC) overcomes mathematical singularities. 
+
+Furthermore, we review the history and applications of quadrotor aircraft, justifying the selection of the open-source Crazyflie 2.1 nano-quadrotor as our primary experimental and simulation platform. We outline the high-fidelity development environments and middleware used in this research, specifically MATLAB, Robot Operating System (ROS 2 Humble), and the Gazebo simulator. Finally, this chapter states the core problem, outlines the specific objectives and structural contributions of this thesis, and details the organizational layout of the remaining chapters.
+
+\section{Introduction to Control Systems}
+The core objective of control engineering is to synthesize feedback mechanisms that guide a physical plant to behave in a desired manner despite the influence of external disturbances, sensor noise, and plant-model mismatch \cite{ref_1}. In the context of robotic systems, dynamic models are mathematical descriptions of physical phenomena, typically formulated as systems of ordinary differential equations (ODEs). Let us consider a general class of second-order continuous-time dynamic systems represented in state-space form:
+\begin{align}
+\dot{x}_1(t) &= x_2(t) \\
+\dot{x}_2(t) &= f(x,t) + g(x,t)u(t) + d(t)
+\end{align}
+where $x(t) = [x_1(t), x_2(t)]^T \in \mathbb{R}^2$ represents the state vector, $u(t) \in \mathbb{R}$ is the control input, $f(x,t)$ and $g(x,t)$ are smooth nonlinear functions mapping the system's drift and control authority, respectively, and $d(t)$ represents the lumped external disturbances and unmodeled dynamics.
+
+The classical control paradigm relies heavily on the Proportional-Integral-Derivative (PID) controller, which is widely celebrated for its simplicity, ease of implementation, and intuitive tuning principles \cite{ref_1, ref_28}. For a tracking error defined as $e(t) = x_d(t) - x_1(t)$ (where $x_d(t)$ is the desired reference trajectory), the standard continuous-time PID control law is formulated as:
+\begin{equation}
+u(t) = K_p e(t) + K_i \int_{0}^{t} e(\tau) d\tau + K_d \dot{e}(t)
+\end{equation}
+where $K_p$, $K_i$, and $K_d$ represent the positive proportional, integral, and derivative feedback gains, respectively. In the Laplace domain, assuming zero initial conditions, this relationship is expressed via the transfer function:
+\begin{equation}
+C(s) = \frac{U(s)}{E(s)} = K_p + \frac{K_i}{s} + K_d s
+\end{equation}
+While PID control performs exceptionally well for linear or linearized time-invariant single-input single-output (SISO) systems, its fundamental limitation lies in its local stability guarantees. 
+
+Linear controllers are typically designed around a specific operating point, such as a static hover condition. When the physical system undergoes aggressive maneuvers, experiences severe parameter drift, or is subjected to high-frequency aerodynamic disturbances, the linearized model fails to capture the true multi-input multi-output (MIMO) coupled dynamics. This vulnerability necessitates the exploration of robust control theory to ensure stability across a broad flight envelope.
+
+\section{Robust Control Theory}
+Robust control theory addresses the critical challenge of maintaining system stability and tracking performance under explicit mathematical descriptions of bounded uncertainty \cite{ref_2, ref_29}. Unlike adaptive control schemes that attempt to estimate unknown parameters online, robust control architectures are synthesized to guarantee performance for a worst-case scenario within a predefined boundary of perturbations. This uncertainty is generally categorized into structured and unstructured variations:
+\begin{enumerate}
+    \item \textbf{Structured Uncertainty:} Parametric changes within the system where the mathematical structure remains known. Examples include variation in total vehicle mass due to payload changes, fluctuations in the moment of inertia, or actuator degradation (such as battery voltage sag).
+    \item \textbf{Unstructured Uncertainty:} Unmodeled high-frequency dynamics that are difficult to capture mathematically, such as structural flexibility, sensor noise, high-frequency rotor vibration, and complex turbulent wind shear.
+\end{enumerate}
+
+To rigorously evaluate the stability of robust control systems, control theorists rely on the mathematical framework established by Aleksandr Lyapunov \cite{ref_2, ref_9}. Lyapunov's direct method states that a system is stable at the origin if there exists a continuously differentiable, positive-definite scalar function $V(x)$ such that its time derivative along the system's trajectories is negative semi-definite. For asymptotic stability, the derivative must be strictly negative definite:
+\begin{align}
+V(x) &&> 0 \quad \forall x \neq 0, \quad V(0) = 0 \\
+\dot{V}(x) &&< 0 \quad \forall x \neq 0, \quad \dot{V}(0) = 0
+\end{align}
+In classic robust linear control, techniques such as $H_{\infty}$ optimal control and $\mu$-synthesis utilize frequency-domain weighting functions to minimize the transfer function norm from external disturbances to tracking errors \cite{ref_2}. However, these linear robust techniques often lead to high-order controllers that demand substantial computational power, making them difficult to implement on resource-constrained embedded microcontrollers. 
+
+Furthermore, they may produce overly conservative control actions that degrade the system's nominal transient performance. Among nonlinear robust methodologies, Sliding Mode Control (SMC) has emerged as an elegant, computationally efficient alternative that provides absolute invariance to matched uncertainties.
+
+\section{Sliding Mode Control}
+Sliding Mode Control (SMC) is a highly influential branch of variable structure control theory, pioneered by Vadim Utkin and further developed for modern engineering applications \cite{ref_3, ref_5, ref_9}. The fundamental philosophy of SMC is to design a discontinuous control law that forces the system's state trajectories onto a predesigned, lower-dimensional manifold in state space, known as the "sliding surface" or "sliding manifold" $s(x) = 0$ \cite{ref_36}. Once the system states reach this manifold, the closed-loop dynamics are governed strictly by the parameters of the surface, rendering the system entirely invariant to any matched uncertainties and disturbances that lie within the range space of the control input.
+
+For a second-order tracking system, a typical linear sliding surface $s(t)$ is designed as:
+\begin{equation}
+s(t) = \dot{e}(t) + \lambda e(t)
+\end{equation}
+where $\lambda$ is a strictly positive tuning parameter that dictates the exponential decay rate of the error once the sliding mode is reached. To guarantee that the system states converge to this surface in finite time, the controller must satisfy the fundamental reachability condition, often formulated using the Lyapunov candidate $V = \frac{1}{2} s^2$:
+\begin{equation}
+s(t)\dot{s}(t) \leq -\eta |s(t)|
+\end{equation}
+where $\eta > 0$ is the switching gain. To satisfy this condition, the total robust control effort $u(t)$ is split into two components:
+\begin{equation}
+u(t) = u_{eq}(t) + u_{sw}(t)
+\end{equation}
+The equivalent control $u_{eq}(t)$ is obtained by setting $\dot{s}(t) = 0$ under nominal, disturbance-free conditions, defining the smooth control effort required to maintain the states on the sliding surface. The switching control $u_{sw}(t)$ provides the necessary robustness to reject disturbances and is defined using the discontinuous signum function:
+\begin{equation}
+u_{sw}(t) = -W \text{sgn}(s(t))
+\end{equation}
+where $W$ is a positive gain selected to overpower the upper bound of the matched disturbance.
+
+\subsection{The Chattering Phenomenon}
+Despite its theoretical elegance and robust invariance property, conventional first-order SMC suffers from a critical drawback known as the chattering phenomenon \cite{ref_18, ref_32}. In theory, the control law switches between positive and negative bounds at an infinite frequency to maintain the states precisely on the sliding manifold. However, physical actuators—such as electronic speed controllers (ESCs) and DC motors—cannot switch at infinite speed due to physical bandwidth limitations, time delays, and discrete-time sampling. Consequently, the control signal exhibits high-frequency, finite-amplitude oscillations around the sliding surface, as illustrated conceptually in Figure \ref{fig:chattering_diagram}.
+
+\begin{figure}[h!]
+\centering
+\fbox{
+  \begin{minipage}{0.8\textwidth}
+    \centering
+    \vspace{1.5cm}
+    \textbf{}
+    \vspace{1.5cm}
+  \end{minipage}
+}
+\caption{Conceptual depiction of sliding mode chattering caused by discrete-time implementation and actuator lag.}
+\label{fig:chattering_diagram}
+\end{figure}
+
+This chattering is highly detrimental in practice: it excites high-frequency unmodeled dynamics, degrades tracking precision, increases energy consumption, and can cause catastrophic failure of mechanical actuators and motors. Historically, researchers attempted to mitigate chattering by replacing the signum function with a continuous approximation, such as the saturation function $\text{sat}(s/\Phi)$ or a hyperbolic tangent function $\tanh(s/\Phi)$, where $\Phi$ represents the boundary layer thickness \cite{ref_11}. While this boundary layer approach effectively eliminates high-frequency chattering, it does so at the cost of losing the absolute invariance property of SMC, reducing tracking accuracy and leading to a steady-state error.
+
+\subsection{Higher-Order Sliding Modes and the Super-Twisting Algorithm}
+To resolve the trade-off between chattering mitigation and disturbance rejection, Levant introduced Higher-Order Sliding Mode Control (HOSMC) \cite{ref_6, ref_8, ref_20}. HOSMC generalizes the concept of sliding modes by driving not only the sliding variable $s(t)$ to zero but also its high-order derivatives, $\dot{s}(t), \ddot{s}(t), \dots, s^{(r-1)}(t)$, in finite time. By choosing a sliding order $r \geq 2$, the discontinuous control action is mathematically hidden behind an integrator, producing a continuous control signal that is directly applied to the physical plant.
+
+The Super-Twisting Algorithm (STA) is one of the most powerful and widely used second-order sliding mode algorithms, particularly suited for systems with a relative degree of one with respect to the control input \cite{ref_7, ref_30}. The control law for the STA consists of a continuous terminal sliding-like term and an integrated discontinuous term:
+\begin{align}
+u(t) &= -k_1 |s(t)|^{1/2} \text{sgn}(s(t)) + v(t) \\
+\dot{v}(t) &= -k_2 \text{sgn}(s(t))
+\end{align}
+where $k_1$ and $k_2$ are positive controller gains. Because the discontinuous signum function is placed behind an integrator in the second equation, the resulting control input $u(t)$ remains continuous. This approach ensures exact finite-time convergence of both $s(t)$ and $\dot{s}(t)$ to zero, even in the presence of Lipschitz-continuous, matched disturbances, without requiring the measurement or estimation of the disturbance derivative.
+
+\subsection{Terminal Sliding Mode Control and Singularity Issues}
+While linear sliding surfaces ensure asymptotic convergence of tracking errors, Terminal Sliding Mode Control (TSMC) was introduced to guarantee finite-time convergence of the tracking error to absolute zero \cite{ref_19, ref_33}. This is achieved by introducing a fractional-power nonlinear term in the sliding manifold:
+\begin{equation}
+s(t) = e(t) + \beta \dot{e}(t)^{p/q}
+\end{equation}
+where $\beta > 0$ is a design constant, and $p$ and $q$ are positive odd integers that satisfy $1 < p/q < 2$. When the system operates in the sliding mode $s(t) = 0$, the error dynamics are governed by the differential equation:
+\begin{equation}
+\dot{e}(t) = -\beta^{-q/p} e(t)^{q/p}
+\end{equation}
+Because the exponent $q/p$ is strictly less than one, the equilibrium $e = 0$ acts as a terminal attractor, guaranteeing that the tracking error reaches absolute zero in a finite, predictable time interval.
+
+However, a critical limitation of conventional TSMC is the mathematical singularity problem that arises during the control law computation \cite{ref_26, ref_31}. Differentiating the sliding surface with respect to time yields:
+\begin{equation}
+\dot{s}(t) = \dot{e}(t) + \beta \frac{p}{q} \dot{e}(t)^{p/q - 1} \ddot{e}(t)
+\end{equation}
+When setting $\dot{s}(t) = 0$ to solve for the equivalent control $u_{eq}(t)$ (which involves substituting the plant dynamics into $\ddot{e}(t)$), the resulting control expression contains a term proportional to $\dot{e}(t)^{2 - p/q - 1}$, which translates to a negative exponent of the velocity error, e.g., $\dot{e}(t)^{p/q - 1}$. 
+
+If the velocity error $\dot{e}(t)$ is zero while the tracking error $e(t)$ is non-zero, the term $\dot{e}(t)^{p/q - 1}$ becomes mathematically undefined (as it involves division by zero), causing the control signal to grow infinitely. This singularity can cause extreme actuator saturation, leading to unstable system behavior or hardware damage during operation.
+
+\subsection{Non-singular Terminal Sliding Mode Control}
+To overcome this singularity issue, Yong Feng et al. proposed Non-singular Terminal Sliding Mode Control (NTSMC) \cite{ref_26}. The core innovation of NTSMC is to reformulate the sliding surface by shifting the fractional exponent to the velocity term, thus isolating the acceleration term during differentiation:
+\begin{equation}
+s(t) = e(t) + \frac{1}{\beta} \dot{e}(t)^{p/q}
+\end{equation}
+where $\beta > 0$, and the positive odd integers $p$ and $q$ are chosen such that $1 < p/q < 2$. Taking the time derivative of this non-singular sliding surface yields:
+\begin{equation}
+\dot{s}(t) = \dot{e}(t) + \frac{p}{\beta q} \dot{e}(t)^{p/q - 1} \ddot{e}(t)
+\end{equation}
+When solving for the equivalent control law, the negative power of $\dot{e}(t)$ is avoided by multiplying the entire equation by $\dot{e}(t)^{2 - p/q}$, which remains smooth and well-behaved because $2 - p/q > 0$. 
+
+By merging the singularity-free terminal sliding manifold of NTSMC with the continuous reaching dynamics of the Super-Twisting Algorithm, we synthesize the Non-singular Super-Twisting Terminal Sliding Mode Control (NSTSMC) architecture. This advanced strategy achieves finite-time convergence of tracking errors, absolute singularity avoidance, and chattering-free robust control inputs. 
+
+This thesis focuses on the systematic design, stability proofs, and dual-platform validation of this NSTSMC pipeline against standard cascaded PID, conventional SMC, and STSMC controllers on the Crazyflie 2.1 quadrotor platform.
+
+\section{History and Applications of Quadrotor UAVs}
+The historical trajectory of Unmanned Aerial Vehicles (UAVs) has evolved rapidly over the past century, transitioning from military reconnaissance platforms to vital components of commercial, industrial, and scientific research ecosystems \cite{ref_12}. Among various rotary-wing configurations, the quadrotor—characterized by its mechanical simplicity, vertical takeoff and landing (VTOL) capability, and high agility—has emerged as a dominant design. 
+
+The early engineering ancestors of modern quadrotors date back to the early 20th century, with the pioneering flights of the Breguet-Richet Gyroplane in 1907 and the Oehmichen No. 2 in 1920 \cite{ref_10}. However, these early human-carrying prototypes suffered from extreme mechanical complexity, high weight-to-power ratios, and severe pilot control challenges due to the absence of electronic feedback loops.
+
+The resurgence of interest in quadrotors in the late 1990s and early 2000s was fueled by the rapid miniaturization and commercial availability of Micro-Electro-Mechanical Systems (MEMS) sensors, high-energy-density Lithium-Polymer (LiPo) batteries, and high-performance brushless and coreless DC motors \cite{ref_12, ref_25}. Early academic research platforms, such as the Stanford Testbed of Autonomous Rotorcraft for Multi-Agent Control (STARMAC) and the Swiss Federal Institute of Technology's (ETH) Pixhawk system, demonstrated the feasibility of stable, indoor autonomous flight using basic linear control laws and external localization \cite{ref_10}.
+
+From a dynamics and control perspective, a quadrotor is defined as an underactuated, highly nonlinear, and strongly coupled multivariable system \cite{ref_11, ref_21}. It possesses six degrees of freedom (6-DOF)—three translational coordinates $(x, y, z)$ and three rotational coordinates represented by the Euler angles $(\phi, \theta, \psi)$—but is controlled by only four independent actuator inputs (the angular velocities of its four rotors). 
+
+Consequently, translational movement along the horizontal axes ($x$ and $y$) can only be achieved by tilting the vehicle's body to generate a horizontal component of the net thrust vector. This underactuation, combined with complex aerodynamic effects such as blade flapping, rotor drag, and ground effect, presents a highly challenging control problem.
+
+Today, autonomous quadrotors are deployed across numerous application domains:
+\begin{itemize}
+    \item \textbf{Industrial Inspection:} Navigating confined indoor spaces, nuclear containment vessels, and structural frameworks where GPS signals are denied.
+    \item \textbf{Search and Rescue Operations:} Mapping collapsed structures and locating survivors using lightweight onboard sensors.
+    \item \textbf{Agricultural Monitoring:} Executing precise path-following trajectories for localized pesticide delivery and crop health assessment.
+    \item \textbf{Defense and Security:} Performing real-time surveillance and autonomous target tracking in highly dynamic, unpredictable environments.
+\end{itemize}
+To operate effectively in these challenging applications, quadrotors require flight control systems that can maintain stable tracking and reject external disturbances like wind gusts, shifting payloads, and actuator degradation.
+
+\section{Crazyflie 2.1 Quadrotor Platform}
+The Crazyflie 2.1, developed by Bitcraze AB, is an open-source, ultra-lightweight nano-quadrotor platform designed specifically for education, academic research, and swarming applications \cite{ref_13, ref_14}. Weighing only 29 g (takeoff mass with a standard battery) and measuring 92 mm diagonally between motor shafts, the Crazyflie provides a safe, accessible, yet highly capable testbed for validating advanced control algorithms in indoor laboratory environments, minimizing the safety risks and regulatory hurdles associated with larger UAV platforms \cite{ref_36, ref_38}.
+
+The platform is built on a sophisticated dual-processor (dual-MCU) architecture designed to decouple low-level communication and power management tasks from high-level state estimation and flight control processing \cite{ref_37}:
+\begin{enumerate}
+    \item \textbf{Main Application MCU (STM32F405):} A high-performance 32-bit ARM Cortex-M4 processor operating at 168 MHz, equipped with 192 kB SRAM and 1 MB of flash memory. This MCU is responsible for running the main firmware, executing state estimation filters, computing control loop updates, and managing expansion deck communications.
+    \item \textbf{Radio and Power Management SoC (nRF51822):} An ARM Cortex-M0 processor operating at 32 MHz, which manages the 2.4 GHz ISM band radio connection, Bluetooth Low Energy (BLE) link, on-board charging circuits, and power sequencing.
+\end{enumerate}
+
+The standard onboard sensor suite includes a BMI088 3-axis accelerometer and gyroscope for high-precision angular rate and linear acceleration measurements, paired with a BMP388 barometric pressure sensor for altitude estimation \cite{ref_38}. High-speed wireless telemetry is facilitated through the Crazyradio PA USB dongle, which operates on the 2.4 GHz band and provides a line-of-sight range exceeding 1 km when combined with an external antenna.
+
+\subsection{Indoor Positioning Systems}
+Because nano-quadrotors lack the payload capacity for standard GPS receivers and heavy LIDAR sensors, autonomous flight requires the integration of specialized indoor positioning decks \cite{ref_14, ref_35}:
+\begin{itemize}
+    \item \textbf{Lighthouse Positioning System:} This system utilizes external HTC Vive laser base stations that sweep the flight area with infrared beams. The sweeps are detected by the onboard Lighthouse positioning deck (equipped with four TS4231 IR receivers and an ICE40UP5K FPGA), allowing the Crazyflie to calculate its own 3D pose onboard at high rates using an Extended Kalman Filter (EKF).
+    \item \textbf{Loco Positioning System:} Based on Decawave DWM1000 Ultra-Wideband (UWB) radio transceivers, this system uses multiple stationary anchors placed around the room and an onboard Loco deck to calculate ranges via Time Difference of Arrival (TDoA).
+    \item \textbf{Motion Capture System (MoCap):} High-performance external infrared cameras (such as Vicon or OptiTrack) track reflective markers mounted on the drone's frame. The computed ground-truth poses are streamed wirelessly to the drone via the Crazyradio PA at rates up to 100 Hz.
+\end{itemize}
+
+Despite its versatility, the Crazyflie platform imposes several severe design challenges. The maximum recommended payload is strictly limited to 15 g, preventing the addition of heavy computational units. Furthermore, the small Lithium-Polymer battery exhibits significant voltage decay (battery sag) during a flight, dropping from 4.1 V to 3.7 V. 
+
+This voltage drop directly reduces the motor thrust constant over time, making altitude hold under simple PID control highly challenging and highlighting the need for robust controllers that can compensate for time-varying plant dynamics.
+
+\section{Simulation and Development Tools}
+Developing and validating robust control strategies for agile aerial vehicles requires a systematic, multi-stage development pipeline that bridges the gap between theoretical derivation and physical deployment \cite{ref_22}. This thesis establishes a dual-platform validation methodology, utilizing MATLAB/Simulink for high-precision numerical simulation and a ROS 2 Humble/Gazebo stack for high-fidelity physical emulation.
+
+\subsection{MATLAB and Simulink}
+MATLAB and Simulink (MathWorks) serve as the primary environment for control system prototyping, symbolic derivation, and numerical stability analysis \cite{ref_23}. The symbolic math toolbox is used to derive the 6-DOF nonlinear equations of motion from first principles using Newton-Euler formalisms. 
+
+The control algorithms are modeled using custom Simulink blocks, and the system is integrated using variable-step, high-order continuous-time solvers (such as \texttt{ode45}). This environment allows for rapid parameter tuning, rigorous Lyapunov stability validation, and initial benchmarking of tracking performance under structured parametric uncertainties and simulated wind models.
+
+\subsection{ROS 2 Humble and Gazebo}
+To transition toward physical implementation, the control laws are ported to the Robot Operating System (ROS 2 Humble) and the Gazebo simulator \cite{ref_15, ref_16}. ROS 2 Humble provides a modular, low-latency middleware framework based on the Data Distribution Service (DDS), which supports real-time pub/sub messaging across independent nodes. 
+
+Gazebo functions as the high-fidelity 3D physics simulator, rendering gravitational forces, rigid-body collisions, aerodynamic drag, and sensor noise. Our simulation stack integrates several open-source packages:
+\begin{enumerate}
+    \item \texttt{crazyflie\_simulation}: Provides the high-fidelity Unified Robot Description Format (URDF) and mesh files for the Crazyflie 2.1 platform, modeling its exact mass, physical dimensions, and motor thrust curves.
+    \item \texttt{crazyswarm2}: A ROS 2-based stack developed by the IMRCLab that manages low-level communication and high-level trajectory command generation for single or swarm Crazyflie operations.
+    \item \texttt{ros\_gz\_crazyflie}: Handles the real-time bridging of messages between the Gazebo simulator and the ROS 2 workspace.
+\end{enumerate}
+
+A key challenge during the ROS-Gazebo validation phase is the communication latency and discretization error \cite{ref_34}. While continuous-time solvers in MATLAB assume instantaneous feedback, a real-world system executes control loops in discrete-time, which can introduce instability if network latency and packet drops are not properly accounted for. 
+
+This high-fidelity simulation environment serves as a rigorous testing ground to evaluate whether the proposed NSTSMC algorithm can maintain stability under discrete communication constraints.
+
+\section{Motivation and Problem Statement}
+The development of agile nano-quadrotors like the Crazyflie 2.1 represents a significant milestone in modern robotics. However, achieving stable, high-speed autonomous trajectory tracking in unpredictable indoor and outdoor environments remains an open research challenge. The core limitations of existing control methodologies are summarized as follows:
+\begin{enumerate}
+    \item \textbf{Local Stability of Linear Methods:} Classical cascaded PID and LQR controllers are highly sensitive to external wind disturbances and payload changes. They require intensive gain scheduling or manual retuning when the vehicle departs from near-hover conditions.
+    \item \textbf{Actuator Damage from Chattering:} Conventional Sliding Mode Control (SMC) provides excellent robustness against matched uncertainties, but the discontinuous switching action causes severe high-frequency chattering in the rotor speeds. This chattering quickly damages coreless motors and drains battery power rapidly.
+    \item \textbf{Singularity Risks of Terminal SMC:} Standard Terminal Sliding Mode Control (TSMC) guarantees finite-time tracking convergence, but the mathematical formulation introduces singularity regions where the control commands grow infinitely, risking catastrophic flight failure.
+    \item \textbf{The Simulation-to-Reality Gap:} Control laws tuned in highly idealized, continuous-time simulation environments often fail when deployed on physical hardware due to real-world communication delays, sensor noise, discrete-time sampling, and battery voltage sag.
+\end{enumerate}
+
+To address these challenges, this thesis is motivated by the need to design, analyze, and validate a unified, non-singular, second-order robust control architecture. The proposed Non-singular Super-Twisting Terminal Sliding Mode Controller (NSTSMC) aims to simultaneously achieve fast finite-time tracking, eliminate mathematical singularities, and suppress chattering-induced actuator wear, ensuring safe and reliable flight under adverse conditions.
+
+\section{Objectives and Contributions}
+The primary objective of this thesis is to develop, simulate, and validate a robust nonlinear control pipeline for the Crazyflie 2.1 nano-quadrotor, tracking its progression from classical linear control to advanced non-singular terminal sliding mode control. The specific research objectives are:
+\begin{itemize}
+    \item To derive a complete, 6-DOF mathematical model of the quadrotor dynamics using Newton-Euler formalisms.
+    \item To design and implement four distinct control strategies: Cascaded PID, Conventional SMC, Super-Twisting SMC (STSMC), and the proposed Non-singular Super-Twisting Terminal SMC (NSTSMC).
+    \item To prove the closed-loop tracking stability of each nonlinear control law using rigorous Lyapunov-based stability criteria.
+    \item To benchmark the tracking performance and chattering levels of all four controllers in MATLAB under payload mass changes and turbulent wind models.
+    \item To port and validate the control architectures in a high-fidelity ROS 2 Humble/Gazebo simulation environment using the Crazyswarm2 stack to analyze performance under real-world communication delays and physical constraints.
+\end{itemize}
+
+The core contributions of this research are:
+\begin{enumerate}
+    \item \textbf{Rigorous Modeling:} Establishing a unified physical dynamic model of the Crazyflie 2.1 platform.
+    \item \textbf{Advanced Control Synthesis:} Developing continuous, finite-time converging control laws (STSMC, NSTSMC) with complete, mathematically formal Lyapunov stability proofs.
+    \item \textbf{Dual-Platform Validation:} Conducting a systematic comparison of linear and robust nonlinear controllers across both numerical (MATLAB) and high-fidelity physical (ROS/Gazebo) environments.
+\end{enumerate}
+
+These findings demonstrate that the proposed NSTSMC architecture provides superior trajectory tracking, faster convergence speed, and excellent disturbance rejection capabilities without inducing high-frequency actuator wear.
+
+\section{Organization of the Thesis}
+The remaining chapters of this thesis are organized as follows:
+\begin{itemize}
+    \item \textbf{Chapter 3: Physical Description and Modeling of the Crazyflie 2.1} detailedly explores the physical parameters of the Bitcraze nano-quadcopter, including mass, moments of inertia, motor characteristics, and expansion capabilities.
+    \item \textbf{Chapter 4: Nonlinear 6-DOF Quadrotor Dynamics Derivation} presents the mathematical derivation of the translational and rotational kinematics and dynamics of the quadrotor from first principles using Newton-Euler formulations.
+    \item \textbf{Chapter 5: Baseline Cascaded PID Controller Design} outlines the design and tuning of the outer loop position and inner loop attitude controllers utilizing classical PID feedback laws.
+    \item \textbf{Chapter 6: Sliding Mode Control and Super-Twisting Control Law Design} presents the design of Conventional SMC and explores the implementation of the Super-Twisting Algorithm to mitigate chattering.
+    \item \textbf{Chapter 7: Proposed Non-singular Super-Twisting Terminal SMC} details the mathematical derivation of the NSTSMC sliding surface, control laws, and complete closed-loop Lyapunov stability proofs.
+    \item \textbf{Chapter 8: MATLAB Simulation Setup and Numerical Evaluation} describes the Simulink modeling environment and provides comparative tracking results, performance metrics, and disturbance rejection plots.
+    \item \textbf{Chapter 9: ROS 2 Humble and Gazebo High-Fidelity Validation} explains the middleware architecture, Crazyswarm2 integration, and the tracking results obtained under simulated actuator delays.
+    \item \textbf{Chapter 10: Comparative Analysis and Hardware Feasibility Discussion} synthesizes the results, analyzing the trade-offs between tracking speed, chattering suppression, and computational complexity on physical microcontrollers.
+    \item \textbf{Chapter 11: Conclusions and Future Research Directions} summarizes the research findings and outlines future pathways, including adaptive tuning and fault-tolerant control strategies.
+\end{itemize}
+
+% Controls intro 
+% Robust control intro
+% SMC intro
+% Quadrotors history 
+% Crazyflie intro
+% Simulation tools intro
+% Motivation and what i have done
+% Organization of the report
+% (with citations, at least 20-25 papers)

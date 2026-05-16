@@ -1,0 +1,103 @@
+% DO NOT Change this is the required setting A4 page, 11pt, onside print, book style
+
+\documentclass[a4paper,12pt,oneside]{book} 
+\usepackage{float}
+\usepackage{listings}
+\usepackage{report} % DO NOT REMOVE THIS LINE. 
+
+
+\begin{document}
+
+    \captionsetup[figure]{margin=1.5cm,font=small,name={Figure},labelsep=colon}
+    \captionsetup[table]{margin=1.5cm,font=small,name={Table},labelsep=colon}
+    
+    \frontmatter
+    
+\begin{titlepage}
+    \begin{center}
+        \LARGE \textbf{Robust Control of Quadrotor UAVs} \\[0.9cm]
+        
+        \normalsize \textbf{Comprehensive Project Report} \\
+        
+        \textit{Submitted in Partial Fulfillment of the} \\
+        \textit{Requirements for the Degree of} \\[0.9cm]
+
+        \Large \textbf{BACHELOR OF TECHNOLOGY} \\[0.3cm]
+        \Large \textbf{IN} \\
+        \LARGE \textbf{COMPUTER ENGINEERING} \\[1cm]
+
+        \normalsize By \\
+        \large{Yash Dadheech} \\
+        \large{22BCP309} \\[1cm]
+
+        \normalsize Under guidance of \\
+        \textbf{Dr. Rajendra Choudhary} \\
+        Assistant Professor, PDEU \\[0.7cm]
+
+        \includegraphics[width=5cm]{images/pdeu_logo.png} \\[0.7cm]
+
+        \textbf{Submitted to,}\\
+        \textbf{Department of Computer Science \& Engineering,} \\
+        \textbf{School of Technology, Pandit Deendayal Energy University,} \\
+        \textbf{Gandhinagar 382 426} \\[1cm]
+
+        \textbf{May 2026}
+    \end{center}
+\end{titlepage}
+    
+    % Acknowledgement
+    
+    \input{empty}
+    \input{chapters/0_certificate_of_originality}
+    \input{empty}
+    \input{chapters/0_certificate_from_supervisor}
+    \input{empty}
+    \input{chapters/0_acknowledgments}
+    \input{empty}
+    
+    % Abstract
+    \input{empty}
+    \input{chapters/0_abstract}   
+
+    % Contents, list of figures, list of tables
+    \input{empty}
+    \tableofcontents
+    \listoffigures
+    \input{empty}
+    \listoftables
+    \input{symbols}
+    \input{empty}
+    \input{nomenclature}
+    \input{empty}
+  
+    
+    \mainmatter
+    % Read for preparation of document in LaTex 
+    % Lamport, L. (1986), LATEX: A Document Preparation System, Addison-Wesley.
+
+    \input{chapters/0_Ctrl_Lab}
+    \input{empty}
+    \input{chapters/1_introduction}
+    \input{empty}
+    \input{chapters/2_system_description}
+    \input{empty}
+    \input{chapters/3_dynamics_of_system}
+    \input{empty}
+    \input{chapters/4_controls_introduction}
+    \input{empty}
+    \input{chapters/5_controller_design}
+    \input{empty}
+    \input{chapters/6_matlab_simulation_results}
+    \input{empty}
+    \input{chapters/7_gazebo_simulation_results}
+    \input{empty}
+    \input{chapters/8_final_discussion}
+    \input{empty}
+    \input{chapters/9_conclusion_future_perspectives}
+    
+    
+    \bibliographystyle{IEEEtran}
+    \bibliography{references}  %  Patashnik, O. (1988), BibTEXing. Documentation for general BibTEX users.  
+    \input{empty}
+    
+\end{document}

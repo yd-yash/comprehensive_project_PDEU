@@ -1,0 +1,177 @@
+\chapter{Control Systems}
+\label{ch:controls}
+
+\section{Introduction to Control Systems}
+At its most fundamental level, a control system is an interconnection of physical components assembled to direct, guide, or regulate the behavior of a dynamic plant so that its outputs track a desired reference trajectory \cite{ref_73}. To understand this concept, it is helpful to contrast the two primary control architectures: Open-Loop and Closed-Loop (Feedback) Control.
+
+In an \textit{Open-Loop Control} configuration, the control input is computed solely based on the desired reference command and a pre-existing model of the plant, without utilizing any measurement of the plant's actual output. A simple everyday analogy is a washing machine that runs for a fixed duration regardless of whether the clothes are clean. In engineering, if we command a quadrotor's motors to spin at a fixed speed calculated to balance its weight, we are operating in open-loop. 
+
+If a sudden wind gust occurs, or if the battery voltage decays, the vehicle will immediately drift or crash because the controller has no mechanism to observe the actual altitude and correct the motor speeds.
+
+To overcome these vulnerabilities, modern automation relies on \textit{Closed-Loop (Feedback) Control} \cite{ref_73}. As illustrated in Figure \ref{fig:feedback_block_diagram}, feedback control continuously measures the actual output of the plant using sensors, compares this measurement against the desired reference to calculate an error signal, and utilizes a controller to adjust the actuator inputs in real-time to drive this error to zero.
+
+\begin{figure}[h!]
+\centering
+\fbox{
+  \begin{minipage}{0.8\textwidth}
+    \centering
+    \vspace{1.5cm}
+    \textbf{}
+    \vspace{1.5cm}
+  \end{minipage}
+}
+\caption{Block diagram of a standard closed-loop feedback control system, illustrating the sensor feedback path and error calculation.}
+\label{fig:feedback_block_diagram}
+\end{figure}
+
+A familiar physical analogy for feedback control is a human driving a car: the driver's eyes (sensors) observe the vehicle's position relative to the lane markings (reference), the brain (controller) calculates the lateral deviation (error), and the hands (actuators) turn the steering wheel to keep the car centered. In robotic flight control, the sensors (IMU, motion capture markers) measure the drone's position and orientation, and the onboard flight computer (controller) continuously calculates motor speed corrections to stabilize the quadrotor.
+
+\section{The Need for Active Feedback Control}
+Active feedback control is a strict requirement for autonomous quadrotor flight due to three primary physical and mathematical factors:
+\begin{enumerate}
+    \item \textbf{Inherent Open-Loop Instability:} As derived in Chapter \ref{ch:dynamics}, a quadrotor has no natural aerodynamic damping or restoring forces. If tilted slightly, gravity immediately generates a lateral acceleration that increases the tilt further, leading to exponential divergence. Active feedback is required to continuously synthesize restoring torques and maintain equilibrium.
+    \item \textbf{High Sensitivity to Disturbances:} Aerial vehicles operate in highly dynamic environments. Wind gusts, thermal drafts, ground effect turbulence, and aerodynamic blade-flapping act as continuous external forces that disturb the vehicle's state. Feedback control is the only mechanism that can detect these deviations and generate counteracting forces.
+    \item \textbf{Plant-Model Mismatch and Parameter Drift:} Mathematical models are idealized representations of physical systems. In practice, physical constants such as total vehicle mass, motor thrust coefficients, and structural moments of inertia cannot be measured with absolute precision. Furthermore, as shown in Chapter \ref{ch:sys_desc}, battery voltage decay dynamically reduces the thrust generated per PWM command. Feedback control automatically adjusts the control effort to compensate for these unmodeled variations, ensuring stable tracking without requiring perfect model knowledge.
+\end{enumerate}
+
+\section{Methodology of Dynamic System Control}
+To design a controller, we must establish a mathematical framework to govern the state transitions. In modern control theory, this is achieved using state-space feedback \cite{ref_66}. Let us consider a continuous-time nonlinear system represented by the state equations:
+\begin{equation}
+\dot{x}(t) = f(x(t), t) + B(x(t), t)u(t)
+\end{equation}
+where $x(t) \in \mathbb{R}^n$ represents the state vector, $u(t) \in \mathbb{R}^m$ is the control input vector, and $B(x(t), t)$ is the input distribution matrix.
+
+Our objective is to design a feedback control law $u(t) = \gamma(x(t), t)$ such that the actual state $x(t)$ tracks a time-varying desired state trajectory $x_d(t)$ \cite{ref_65}. We define the tracking error vector $e(t)$ as:
+\begin{equation}
+e(t) = x(t) - x_d(t)
+\end{equation}
+Differentiating this error with respect to time yields the error dynamics:
+\begin{equation}
+\dot{e}(t) = \dot{x}(t) - \dot{x}_d(t) = f(x(t), t) + B(x(t), t)u(t) - \dot{x}_d(t)
+\end{equation}
+
+For linear systems, classical state feedback is formulated as $u(t) = -K e(t)$, where $K \in \mathbb{R}^{m \times n}$ is the feedback gain matrix. By selecting the elements of $K$ using pole-placement or Linear Quadratic Regulator (LQR) design, we can position the eigenvalues of the closed-loop system matrix in the open left-half of the complex s-plane, guaranteeing exponential stability \cite{ref_73}. 
+
+However, when the system experiences unmodeled disturbances and strong nonlinearities, linear feedback gains may fail to maintain stability, requiring the introduction of robust control methodologies.
+
+\section{The Mathematical Span of Control Authority}
+A critical mathematical concept in modern control design is the \textit{span of control authority}, which is defined by the column space (or image) of the input distribution matrix $B(x(t), t)$ \cite{ref_64, ref_72}. To explore this concept, we incorporate a lumped vector of parameter uncertainties and external perturbations, $d(t) \in \mathbb{R}^n$, into our state-space system:
+\begin{equation}
+\dot{x}(t) = f(x(t), t) + B(x(t), t)u(t) + d(t)
+\end{equation}
+
+The input distribution matrix $B(x(t), t) \in \mathbb{R}^{n \times m}$ maps the $m$-dimensional control input $u(t)$ into the $n$-dimensional state space. The vector space spanned by the columns of $B$ represents the directions in state space that can be directly accelerated by our physical actuators, denoted as $\text{span}(B(x(t), t)) \subset \mathbb{R}^n$. Based on whether the disturbance vector $d(t)$ lies within this subspace, we categorize uncertainties into matched and unmatched perturbations:
+
+\subsection{Matched Uncertainties}
+A perturbation or disturbance $d(t)$ is said to be \textit{matched} if it lies entirely within the column space of the input distribution matrix \cite{ref_72}:
+\begin{equation}
+d(t) \in \text{span}(B(x(t), t))
+\end{equation}
+This mathematical condition implies that there exists a bounded virtual vector $\delta(t) \in \mathbb{R}^m$ such that:
+\begin{equation}
+d(t) = B(x(t), t)\delta(t)
+\end{equation}
+Substituting this condition back into our state equations yields:
+\begin{equation}
+\dot{x}(t) = f(x(t), t) + B(x(t), t) [u(t) + \delta(t)]
+\end{equation}
+The physical significance of a matched disturbance is profound: because the disturbance enters the state equations through the exact same channels as the control input $u(t)$, the controller has the direct physical authority to completely cancel out the disturbance's influence. By design, Sliding Mode Control provides absolute invariance to matched uncertainties once the system reaches the sliding manifold.
+
+\subsection{Unmatched Uncertainties}
+Conversely, a perturbation $d(t)$ is \textit{unmatched} if it does not lie within the column space of the input matrix \cite{ref_72}:
+\begin{equation}
+d(t) \notin \text{span}(B(x(t), t))
+\end{equation}
+In this case, the disturbance acts on state channels where there is no direct control authority. Consequently, the controller cannot instantaneously cancel out the disturbance; the perturbation must propagate through the internal couplings of the system before the actuators can counteract its influence.
+
+This distinction is crucial for underactuated systems like the quadrotor. Because a quadrotor has only 4 independent rotor inputs but 6 degrees of freedom, the input matrix $B$ has only 4 independent columns. The vertical thrust $U_1$ directly spans the vertical acceleration channel, and the torques ($U_2, U_3, U_4$) directly span the angular acceleration channels. 
+
+Thus, vertical force disturbances (like payload changes) and angular moment disturbances (like rotor imbalances) are matched. However, horizontal forces (such as lateral wind gusts along the global $x$ and $y$ axes) act directly on the translational velocity channels, which do not have dedicated actuators and thus lie outside the immediate span of the control input matrix in the attitude loop. 
+
+These unmatched lateral disturbances must be handled through a hierarchical design, where the outer-loop position controller tilts the desired attitude vector, translating the unmatched lateral forces into the matched vertical thrust channel.
+
+\section{Introduction to Robust Control}
+In practical applications, implementing control laws requires addressing structured and unstructured uncertainties that degrade nominal performance. While classical linear control focuses on nominal performance, robust control is synthesized to guarantee stable operation under worst-case plant-model mismatches and bounded external disturbances \cite{ref_64}.
+
+Robust control architectures, such as $H_{\infty}$ control and sliding mode control, do not attempt to estimate unknown parameters online (as in adaptive control schemes). Instead, they assume that the unmodeled dynamics and disturbances are bounded within a known compact set \cite{ref_64, ref_66}:
+\begin{equation}
+\|d(t)\| \leq D_{max}
+\end{equation}
+where $D_{max}$ is a known positive upper bound. The controller is then designed with sufficient feedback authority to overpower this worst-case perturbation, ensuring that the tracking errors remain bounded or converge to zero. 
+
+For highly nonlinear, fast-switching platforms like the Crazyflie, robust control is essential because linear models are highly sensitive to unmodeled aerodynamic couplings, and adaptive estimators may not converge fast enough during aggressive maneuvers.
+
+\section{Historical Evolution of Sliding Mode Control}
+Sliding Mode Control (SMC) represents one of the most successful and deeply researched nonlinear robust control methodologies. The foundational theories of SMC and Variable Structure Systems (VSS) were pioneered in the late 1950s and early 1960s in the former Soviet Union by Sergei V. Emelyanov and Vadim I. Utkin at the Institute of Automation and Remote Control in Moscow \cite{ref_67, ref_68}.
+
+During its inception, the concept of variable structure control was met with significant skepticism within the classical control community. Early linear control paradigms relied on smooth, continuous feedback loops to ensure system stability. 
+
+In contrast, VSS introduced a discontinuous switching mechanism where the control signal abruptly switches between two distinct feedback structures in real-time. The core discovery of Emelyanov and Utkin was that by carefully designing the switching rule, the closed-loop system could be forced to exhibit a new, emergent mode of motion—the sliding mode—which is entirely absent in either of the individual continuous structures.
+
+The research achieved a milestone in 1972 when Emelyanov, Utkin, and their colleagues were awarded the Lenin Prize for their contributions to VSS theory \cite{ref_68}. The methodology gained global prominence in the late 1970s and 1980s following the publication of Utkin's seminal English monographs and survey papers, which detailed the mathematical framework for proving the existence of sliding modes in multi-variable systems \cite{ref_67}. 
+
+Over the past four decades, SMC has transitioned from an academic theory to a widely implemented industrial standard, celebrated for its unique ability to render complex nonlinear systems completely invariant to matched uncertainties.
+
+\section{Modern Expansions of Sliding Mode Control}
+As SMC theory encountered physical engineering platforms, researchers developed several advanced variants to overcome the limitations of classical first-order sliding mode control:
+\begin{itemize}
+    \item \textbf{Integral Sliding Mode Control (ISMC):} In conventional SMC, the invariance property is only guaranteed after the system states reach the sliding surface. During the initial "reaching phase," the system remains vulnerable to disturbances. ISMC eliminates this reaching phase by incorporating an integral term into the sliding variable, ensuring that the states start on the sliding manifold from the very first instant ($t=0$) and maintaining robust performance throughout the entire trajectory \cite{ref_71}.
+    \item \textbf{Terminal Sliding Mode Control (TSMC):} Conventional sliding surfaces are designed as linear combinations of error and velocity, which yield asymptotic (exponential) convergence where the tracking errors only reach zero as time approaches infinity. TSMC introduces fractional-power nonlinear terms into the sliding surface, forcing the tracking errors to converge to absolute zero in a finite, predictable time interval \cite{ref_71}.
+    \item \textbf{Non-singular Terminal Sliding Mode Control (NTSMC):} While TSMC guarantees fast finite-time convergence, the control law contains terms with negative fractional powers of velocity. When the tracking error is non-zero but the velocity error drops to zero, the control command grows infinitely, causing mathematical singularities and actuator saturation. NTSMC reformulates the sliding surface to isolate the acceleration term, eliminating these singularities while preserving the finite-time convergence guarantees \cite{ref_70}.
+    \item \textbf{Higher-Order Sliding Modes (HOSMC) and Super-Twisting:} The primary drawback of first-order SMC is high-frequency chattering caused by the discontinuous signum function in the control path. HOSMC generalizes sliding mode theory by driving the sliding variable and its higher derivatives to zero. The Super-Twisting Algorithm (STA)—a prominent second-order SMC—mathematically integrates the discontinuous switching term, producing a continuous control signal that filters out high-frequency chattering while preserving the system's robust disturbance rejection capabilities \cite{ref_69}.
+\end{itemize}
+
+\section{Fundamental Concepts of Sliding Mode Control}
+To understand the operating mechanics of Sliding Mode Control, we explore its design as a two-stage procedure: the selection of the sliding surface and the synthesis of the reaching control law \cite{ref_65, ref_72}.
+
+\subsection{The Sliding Surface (Manifold)}
+The first step is to design a sliding variable $s(t)$ that represents a virtual constraint on the system states. For a second-order tracking error $e(t)$, we define a linear sliding surface as:
+\begin{equation}
+s(t) = \dot{e}(t) + \lambda e(t) = 0
+\end{equation}
+where $\lambda$ is a strictly positive design constant. This equation defines a hyperplane in the state space. 
+
+When the controller successfully forces the system states onto this surface ($s(t) = 0$), the tracking error dynamics are governed strictly by the differential equation $\dot{e}(t) = -\lambda e(t)$. Consequently, the error decays exponentially to zero at a rate dictated by $\lambda$, completely independent of any plant parameters or external disturbances.
+
+\subsection{The Reaching Phase and Reaching Laws}
+The second step is to design a control law that forces the system states to reach this sliding surface in finite time and remain on it thereafter \cite{ref_65}. To prove that the surface is attractive, we define a positive-definite Lyapunov candidate function $V(s) = \frac{1}{2} s^2$. For the states to converge to $s = 0$, the time derivative of $V$ must satisfy the strictly negative-definite reachability condition:
+\begin{equation}
+\dot{V}(s) = s\dot{s} \leq -\eta |s|
+\end{equation}
+where $\eta$ is a positive switching gain. To satisfy this condition, the total control input $u(t)$ is split into equivalent and switching components:
+\begin{equation}
+u(t) = u_{eq}(t) + u_{sw}(t)
+\end{equation}
+
+The equivalent control $u_{eq}(t)$ is obtained by setting $\dot{s}(t) = 0$ under nominal, disturbance-free conditions, defining the smooth control effort required to keep the state on the sliding surface. The switching control $u_{sw}(t)$ provides the robust control effort required to reject disturbances and is defined as:
+\begin{equation}
+u_{sw}(t) = -W \text{sgn}(s(t))
+\end{equation}
+where $W$ is a positive gain selected to overpower the upper bound of the matched disturbance. 
+
+The interaction between the reaching phase (where states are driven toward the manifold) and the sliding phase (where states slide along $s=0$ to the origin) is illustrated conceptually on the phase plane in Figure \ref{fig:phase_plane_smc}.
+
+\begin{figure}[h!]
+\centering
+\fbox{
+  \begin{minipage}{0.8\textwidth}
+    \centering
+    \vspace{1.5cm}
+    \textbf{}
+    \vspace{1.5cm}
+  \end{minipage}
+}
+\caption{Phase plane trajectory of a closed-loop system under Sliding Mode Control, illustrating the reaching phase, sliding surface $s=0$, and finite-time convergence to the origin.}
+\label{fig:phase_plane_smc}
+\end{figure}
+
+This two-stage formulation underpins the control architectures investigated in this thesis. In Chapter \ref{ch:sys_desc}, we will detail the step-by-step mathematical derivation of these equivalent and switching control laws for each of our four controllers—Cascaded PID, Conventional SMC, STSMC, and NSTSMC—validating their tracking performance and disturbance rejection capabilities.
+
+% what are control systems \\
+% need of controls \\
+% how to control a dynamical system \\
+% span of controls \\
+% robust controls \\
+% smc history \\
+% expansions of smc \\
+% concepts of smc \\

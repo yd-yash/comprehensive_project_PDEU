@@ -1,0 +1,46 @@
+\chapter*{Symbols}
+\addcontentsline{toc}{chapter}{Symbols} 
+\chaptermark{Symbols}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{@{}p{0.4\textwidth}p{0.55\textwidth}@{}}
+        \hline
+        \textbf{Symbol} & \textbf{Description} \\
+        \hline
+        $K$ & Intrinsic projection matrix of camera \\
+        $f$ & Focal length of camera lens \\
+        $(c_x, c_y)$ & Optical center coordinates of camera \\
+        $s$ & Potential axis skew of camera \\
+        $R$ & Rotational transformation \\
+        $t$ & Translational transformation \\       
+        $\mat{I} = \{x_I, y_I, z_I\}$ & Inertial frame fixed with respect to the earth \\
+        $\mat{B} = \{x_B, y_B, z_B\}$ & Frame rigidly attached to the quadrotor \\
+        $\mat{C} = \{x_C, y_C, z_C\}$ & Frame fixed to the load \\
+        $\vect{\xi} = [x \; y \; z]^T \in \mathbb{R}^3$ & Position of the center of mass of the quadrotor in the inertial frame \\
+        $\vect{\xi}_c = [x_c \; y_c \; z_c]^T \in \mathbb{R}^3$ & Position of the load in the inertial frame \\
+        $\vect{\eta} = [\psi \; \theta \; \phi]^T \in \mathbb{R}^3$ & Euler angles of yaw, pitch and roll \\
+        $\vect{\eta}_c = [\alpha \; \beta]^T \in \mathbb{R}^2$ & Swing angles of the load \\
+        $\vect{q} = [x \; y \; z \; \psi \; \theta \; \phi \; \alpha \; \beta]^T \in \mathbb{R}^8$ & Generalized coordinates vector of the system \\
+        $M_q$ & Mass of the quadrotor \\
+        $m_c$ & Mass of the suspended load \\
+        $L$ & Length of the suspension cable \\
+        $g$ & Gravitational acceleration \\
+        $\lagr$ & Lagrangian of the system \\
+        $\kine$ & Kinetic energy of the system \\
+        $\pote$ & Potential energy of the system \\
+        $\mat{J}$ & Inertia matrix of the quadrotor \\
+        $f_q$ & Total thrust force \\
+        $\vect{u} = [f_q \; \tau]^T$ & Control input vector \\
+        $\vect{\tau} = [\tau_\psi \; \tau_\theta \; \tau\phi]^T$ & Input torques vector \\
+        $\phi_des$ & Desired quadrotor attitute \\
+        $u_1$ & Desired total thrust \\
+        $\theta_eqb$ & Orientation of quadcopter at load equilibrium \\
+        $f_q$ & Control input for virtual feedback linearisation controller \\
+        $\mu_x$ & Virtual control signal for virtual feedback linearisation controller \\
+        $\tau_\theta$ & Control signal for attitute subsystem of virtual feedback linearisation controller \\
+        \hline
+    \end{tabular}
+    \label{tab:symbols}
+\end{table}
+

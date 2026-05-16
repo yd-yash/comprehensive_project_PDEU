@@ -1,0 +1,125 @@
+\chapter{Final Discussion}
+\label{ch:final_discussion}
+
+\section{The Imperative for Advanced Flight Controllers}
+The flight control of autonomous multirotors, particularly nano-scale quadrotors such as the Crazyflie 2.1, presents a classical and highly demanding underactuated nonlinear control problem. To understand why advanced, robust, and nonlinear control architectures are necessary, it is helpful to analyze the fundamental physical limitations of the traditional linear control loops that govern modern flight controllers.
+
+\subsection{Limitations of Classical Cascaded PID Control}
+Proportional-Integral-Derivative (PID) control is widely celebrated for its simplicity, ease of implementation, and intuitive tuning principles. In a standard cascaded flight control configuration, the quadrotor is decoupled into linear single-input single-output (SISO) loops. The outer loop manages slow translational transitions, and the inner loop stabilizes fast rotational attitude dynamics. 
+
+This linear decoupling relies heavily on the small-angle approximation:
+\begin{equation}
+\sin\phi \approx \phi, \quad \sin\theta \approx \theta, \quad \cos\phi \approx 1, \quad \cos\theta \approx 1
+\end{equation}
+This approximation is physically valid only when the vehicle operates in a stable, near-hover flight regime. 
+
+However, during high-speed trajectory tracking, aggressive maneuvers, or when subjected to external disturbances, these small-angle assumptions are violated. In these scenarios, the quadrotor's highly nonlinear, cross-coupled rotational Coriolis and gyroscopic moments become significant:
+\begin{align}
+\tau_{\text{gyro},\phi} &= q_w r_w (I_{yy} - I_{zz}) \\
+\tau_{\text{gyro},\theta} &= p_w r_w (I_{zz} - I_{xx}) \\
+\tau_{\text{gyro},\psi} &= p_w q_w (I_{xx} - I_{yy})
+\end{align}
+Because linear PID controllers lack any model-based feedforward component to actively calculate and cancel these rotational couplings, the inner-loop attitude tracking exhibits severe phase lag, overshoot, and tracking drift, which propagates to the outer loop and can cause catastrophic flight instability.
+
+\subsection{The Reality of Actuator and Battery Dynamics}
+A physical quadrotor does not operate under the ideal conditions assumed in basic numerical models. Actuators exhibit first-order lag, meaning there is a mechanical delay between the commanded virtual control input and the actual aerodynamic thrust produced by the propellers. 
+
+Furthermore, the single-cell Lithium-Polymer (1S LiPo) battery utilized in nano-UAV platforms suffers from significant voltage decay (battery sag) under high propeller load. As the battery voltage drops from a fully charged 4.1 V to its nominal 3.7 V during flight, the motor thrust coefficient $K_f$ dynamically decreases. Under a standard linear controller, this decay results in a steady-state altitude drop because the controller cannot dynamically scale its output to compensate for the decaying actuator gains, requiring the pilot or high-level trajectory planner to constantly retune or adjust hover trims.
+
+\subsection{Matched vs. Unmatched Perturbations}
+In robust control theory, disturbances are classified into matched and unmatched categories based on the channels through which they enter the system state equations. For a quadrotor:
+\begin{itemize}
+    \item \textbf{Matched Disturbances:} Disturbed forces and moments that act along the same channels as the control inputs (e.g., vertical aerodynamic drag, payload mass variations, and rotor torque imbalances). Because these disturbances directly align with the actuators, they can be actively cancelled by the controller.
+    \item \textbf{Unmatched Disturbances:} Perturbations that act on state channels where no direct actuator is present (e.g., lateral wind gusts along the global $X$ and $Y$ axes). Because a quadrotor has only four independent motor inputs to control six degrees of freedom, the horizontal accelerations are unmatched in the attitude loop. 
+\end{itemize}
+Linear feedback loops cannot actively reject these unmatched lateral perturbations. To maintain trajectory tracking, a controller must incorporate nonlinear dynamic coupling that can translate unmatched horizontal force errors into matched tilt and thrust corrections. This necessitates the development of robust nonlinear controllers.
+
+\section{Structural and Mathematical Innovations of the Designed Controllers}
+To overcome the limitations of classical linear control, this thesis developed and comparatively evaluated three advanced nonlinear robust control strategies: Conventional Sliding Mode Control (SMC), Super-Twisting Sliding Mode Control (STSMC), and the proposed Non-singular Super-Twisting Terminal Sliding Mode Control (NSTSMC). Each progression introduced specific mathematical and structural innovations designed to resolve the limitations of its predecessor.
+
+\subsection{The Invariance Property of Sliding Mode Control}
+The core innovation of Conventional first-order SMC is the concept of a Variable Structure System (VSS). By designing a sliding variable as a linear combination of tracking error and its derivative:
+\begin{equation}
+s_i(t) = \dot{e}_i(t) + c_i e_i(t)
+\end{equation}
+the controller divides the state-space trajectory into two distinct phases:
+\begin{enumerate}
+    \item \textbf{The Reaching Phase:} The controller applies a discontinuous switching feedback law to force the system's tracking errors onto the predesigned manifold ($s_i = 0$) in finite time.
+    \item \textbf{The Sliding Phase:} Once the tracking errors reach the manifold, the closed-loop dynamics are governed strictly by the sliding gain $c_i$, rendering the system entirely invariant to any matched parametric uncertainties (such as mass fluctuations) and external disturbances.
+\end{enumerate}
+
+\subsection{Chattering Mitigation via Second-Order Integration}
+The primary drawback of Conventional first-order SMC is the chattering phenomenon—high-frequency, finite-amplitude oscillations in the control inputs caused by the continuous, rapid switching of the signum function $\text{sgn}(s(t))$ at the digital controller's sampling limit. This chattering excites high-frequency unmodeled structural dynamics, increases rotor temperatures, and drains battery power rapidly.
+
+To suppress chattering while preserving robust disturbance rejection, we implemented the Super-Twisting Algorithm (STA), a prominent second-order sliding mode technique. The STA reaching law is formulated as:
+\begin{align}
+u_{\text{sw}}(t) &= -k_{1} |s(t)|^{1/2} \text{sgn}(s(t)) + v(t) \\
+\dot{v}(t) &= -k_{2} \text{sgn}(s(t))
+\end{align}
+By placing the discontinuous signum function behind an integrator in the second-order auxiliary variable $v(t)$, the resulting control input $u(t)$ becomes smooth and continuous. This continuous formulation filters out the high-frequency chattering, reducing the Total Variation (TV) of the actuator signals to levels comparable with linear PID control, thereby protecting motor health and improving flight efficiency.
+
+\subsection{Singularity Elimination in Terminal Sliding Mode Control}
+While linear sliding surfaces ensure asymptotic (exponential) convergence—where tracking errors approach zero only as time approaches infinity—Terminal Sliding Mode Control (TSMC) introduces a fractional-power nonlinear term to force tracking errors to reach absolute zero in a finite, predictable time interval:
+\begin{equation}
+s_{\text{tsm}} = e + \beta \dot{e}^{p/q}
+\end{equation}
+where $1 < p/q < 2$. However, differentiating this linear-velocity surface to calculate the equivalent control law $u_{\text{eq}}$ (by setting $\dot{s}_{\text{tsm}} = 0$) introduces a term proportional to $\dot{e}^{1 - p/q}$. Because $p/q > 1$, the exponent $1 - p/q$ is negative. 
+
+Consequently, if the velocity error $\dot{e}$ drops to zero while the tracking error $e$ is non-zero, the control signal grows infinitely (division by zero), causing mathematical singularities that saturate physical actuators and destabilize flight.
+
+To eliminate this singularity, the proposed Non-singular Terminal Sliding Mode (NTSM) manifold reformulates the switching surface by shifting the fractional exponent to the velocity term:
+\begin{equation}
+s_{\text{ntsm}} = e + \frac{1}{\beta} \text{sgn}(\dot{e}) |\dot{e}|^{\gamma}
+\end{equation}
+where $1 < \gamma = p/q < 2$. Taking the time derivative of this surface yields:
+\begin{equation}
+\dot{s}_{\text{ntsm}} = \dot{e} + \frac{\gamma}{\beta} |\dot{e}|^{\gamma - 1} \ddot{e}
+\end{equation}
+When solving for the equivalent control, we isolate the acceleration term $\ddot{e}$ by multiplying the entire equation by $|\dot{e}|^{2-\gamma}$. Because $\gamma < 2$, the exponent $2 - \gamma$ remains strictly positive (e.g., $2 - 5/3 = 1/3 > 0$). 
+
+This ensures that the control law remains completely smooth, bounded, and singularity-free across all state and error configurations, combining the benefits of finite-time convergence, chattering suppression, and singularity avoidance.
+
+\section{Open Challenges and Future Research Directions}
+While the proposed Non-singular Super-Twisting Terminal SMC (NSTSMC) has demonstrated exceptional trajectory tracking accuracy and robust disturbance rejection in both continuous-time numerical simulations and high-fidelity physics-based environments, several open challenges must be resolved in future work to extend this pipeline toward real-world deployment.
+
+\subsection{Online Adaptive Gain Tuning}
+The sliding surface gains ($\beta_i$) and reaching law parameters ($k_{1,i}, k_{2,i}$) in this research were tuned offline to ensure stability under a worst-case disturbance profile. However, choosing fixed, conservative gains introduces an operational trade-off:
+\begin{itemize}
+    \item If the gains are set too high to reject severe wind gusts, they generate unnecessary control effort and residual chattering during calm flight phases, draining the battery.
+    \item If the gains are set too low to ensure smooth control, they cannot maintain tracking accuracy when subjected to unexpected aerodynamic perturbations or payload changes.
+\end{itemize}
+Future research should focus on integrating online adaptive gain laws that dynamically adjust the controller gains based on the real-time distance of the states from the sliding manifold. Incorporating meta-heuristic optimization techniques, such as Particle Swarm Optimization (PSO) or Genetic Algorithms, can allow the vehicle to automatically tune its robust gains in real-time, minimizing a composite cost function balancing tracking error and control effort.
+
+\subsection{Active Disturbance Observer Integration}
+The robust switching control component $u_{\text{sw}}$ in standard Sliding Mode Control is designed to overpower the upper bound of the matched disturbance. To reduce the reliance on high-gain switching terms, future research should integrate active disturbance estimation techniques, such as Extended State Observers (ESOs) or Higher-Order Sliding Mode Observers (HOSMOs). 
+
+The observer estimates the lumped matched and unmatched perturbations in real-time, allowing the controller to apply direct, smooth feedforward compensation. This restricts the sliding mode switching gain to only handle the minor observer estimation error, significantly reducing chattering while maintaining high robust margins.
+
+\begin{figure}[h!]
+\centering
+\fbox{
+  \begin{minipage}{0.8\textwidth}
+    \centering
+    \vspace{1.5cm}
+    \textbf{Proposed Control Loop with Active Observer} \\
+    \small\textit{Block Diagram: Trajectory Reference $\rightarrow$ NSTSMC $\rightarrow$ Mixer $\rightarrow$ Quadrotor Plant $\leftrightarrow$ ESO / HOSMO (Estimation Feedback loop).}
+    \vspace{1.5cm}
+  \end{minipage}
+}
+\caption{Proposed future flight control architecture integrating active Extended State Observers (ESO) with the robust NSTSMC law.}
+\label{fig:future_observer_diagram}
+\end{figure}
+
+\subsection{Active Fault-Tolerant Control Allocation}
+The Gazebo simulation results demonstrated that the NSTSMC can successfully maintain flight stability following a sudden 50\% Loss of Effectiveness (LOE) on a single rotor. However, if the quadrotor experiences a complete rotor failure (100\% LOE), a standard controller cannot maintain stable 6-DOF tracking because the system loses one of its four control channels, becoming severely underactuated.
+
+To achieve survivability under total actuator failures, the robust control laws must be coupled with an active Control Allocation and Fault Detection and Isolation (FDI) module. Upon detecting a failed rotor, the FDI unit isolates the damaged actuator, and the control allocator dynamically redistributes the commanded torques among the remaining three healthy rotors (for instance, by sacrificing yaw control authority to prioritize roll, pitch, and altitude stabilization), enabling a controlled emergency landing.
+
+\subsection{Zero-Shot Sim-to-Real Hardware Deployment}
+The ultimate validation of the robust control pipeline is its deployment on physical Crazyflie 2.1 nano-quadrotors. This transition requires implementing the Python-designed control loops directly in the C++ firmware of the STM32F405 microcontroller to eliminate communication latency. 
+
+Validating the NSTSMC on actual hardware will expose the algorithm to true physical constraints, including ESC saturation limits, battery voltage decay, aerodynamic ground effects, and time-varying delays in the motion capture localization link, providing the final proof of the controller's real-world viability.
+
+% why new controllers? \\
+% what is ther ein new controllers \\
+% what more can be done? \\

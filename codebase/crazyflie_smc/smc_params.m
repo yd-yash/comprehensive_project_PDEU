@@ -1,90 +1,90 @@
 function p = smc_params(p)
-% SMC gains for Bitcraze Crazyflie 2.1
+% =========================================================================
+% smc_params.m — Retuned SMC Gains for 3D Lissajous Figure-8 Trajectory
+% =========================================================================
 %
-% GAIN STRUCTURE NOTES
+% TUNING RATIONALE (vs original gains)
+% ─────────────────────────────────────
+% Original problem: x/y errors ≈ ±0.2 / ±0.5 m, never settling.
+% Root cause: outer-loop cascade (kpx, kdx) too weak to keep up with the
+% Lissajous trajectory (omega=0.5 rad/s for x, 1.0 rad/s for y).
+%
+% The XY loop works as follows:
+%   vel_ref  = kp * (x_des - x)          position error → velocity ref
+%   accel_ref = kd * (vel_ref - x_dot)   velocity error → accel ref
+%   Ux = (m/U1) * (accel_ref + c*e_dot + ks*sat + kl*s)
+%
+% For the Lissajous:
+%   x requires bandwidth ~ omega     = 0.5 rad/s  → needs kpx ~ 1.5-2.0
+%   y requires bandwidth ~ 2*omega   = 1.0 rad/s  → needs kpy ~ 3.0-4.0
+%
+% Fix strategy:
+%   1. Raise kpx/kpy and kdx/kdy significantly (primary fix)
+%   2. Raise c_x/c_y to steepen sliding surface (faster error closure)
+%   3. Raise ks_x/ks_y slightly for stronger switching action
+%   4. Add small kl_x/kl_y for smooth convergence inside boundary layer
+%   5. Tighten sat_bl slightly for sharper surface enforcement
+%   6. Raise attitude gains slightly to handle larger phi/theta commands
+%
+% EXPECTED IMPROVEMENT
 % ────────────────────
-% Sliding surface:  s = ė + c·e
-% Surface dynamics: ṡ + ks·sat(s/bl) + kl·s = 0
+%   RMSE x   : 0.159 → ~0.05–0.08 m
+%   RMSE y   : 0.281 → ~0.08–0.15 m   (y harder: 2x frequency)
+%   RMSE z   : already good; kept ~same
+%   phi/theta settle: should settle once position tracks
 %
-% For ATTITUDE channels the controller produces:
-%   U2 = Ixx * (gyro_cross + phi_cmd_ddot + c_phi*e_phi_dot + ks_phi*sat + kl_phi*s)
-% The gains ks, kl, c multiply Ixx INSIDE the controller, so they do NOT
-% need rescaling when switching platforms — Ixx handles the torque scaling.
-%
-%   CF2.1: Ixx*ks_phi = 16.57e-6 * 0.3 = 4.97e-6 Nm  [tau_phi_max = 1.04e-2 Nm]
-%   => switching term uses < 0.05% of available torque authority — safe.
-%
-% For POSITION/ALTITUDE channels the controller produces U1, Ux, Uy which
-% are dimensionless or in Newtons scaled by m. These are more sensitive to
-% platform scale. Gains are kept conservatively small for the indoor CF envelope.
-%
-% XY outer-loop: kpx generates a velocity reference, kdx generates an
-% acceleration reference. For CF on a 0.5m circle:
-%   vel_ref_max = kpx * 0.5 = 0.35 m/s   (kpx = 0.7)
-%   accel_max   = kdx * 0.35 = 0.18 m/s^2 (kdx = 0.5)
-%   phi_des ~ accel/g = 1 deg  — well within small-angle regime.
-%
-% c_z / c_x / c_y: surface slope = ratio of velocity weight to position
-%   weight. Kept at 0.5 rad/s (same as original) — appropriate for slow
-%   indoor trajectories. Increase to ~1.0 if faster convergence is needed.
-%
-% ks_z: switching gain for altitude. CF has 9 m/s^2 of accel headroom above
-%   hover. ks_z = 0.4 keeps the switching impulse well within that margin.
-%
-% kl_z: linear gain on the sliding surface. Provides smooth closure when
-%   s is small (inside the boundary layer). kl_z = 0.2 is conservative.
+% =========================================================================
 
+    % ── XY outer-loop cascade gains ───────────────────────────────────────
+    % Raised substantially to match Lissajous bandwidth.
+    % Rule of thumb: kp > 2*omega for the axis frequency.
+    % x-axis: omega = 0.5 rad/s  → kpx = 2.0, kdx = 1.5
+    % y-axis: omega = 1.0 rad/s  → kpy = 3.5, kdy = 2.0
+    p.kpx = 2.0;    % was 0.7
+    p.kpy = 3.5;    % was 0.7
+    p.kdx = 1.5;    % was 0.5
+    p.kdy = 2.0;    % was 0.5
 
-    % XY outer-loop cascade gains
-    % vel_ref = kp * (xd - x),  accel_ref = kd * (vel_ref - x_dot)
-    p.kpx = 0.7;    % x position -> velocity ref  [same as original, safe for CF]
-    p.kpy = 0.7;    % y position -> velocity ref
-    p.kdx = 0.5;    % x velocity -> accel ref
-    p.kdy = 0.5;    % y velocity -> accel ref
+    % ── Altitude (z) ──────────────────────────────────────────────────────
+    % Already performing well (settled at 8.38s). Small increase to c_z
+    % for faster initial rise; ks_z and kl_z kept conservative.
+    p.c_z   = 0.8;  % was 0.5  — faster surface approach
+    p.ks_z  = 0.5;  % was 0.4
+    p.kl_z  = 0.3;  % was 0.2
 
-    % ── Altitude (z) ─────────────────────────────────────────────────────────
-    % U1 = (m/cos*cos) * (g + Kz*z_dot/m + Zd_ddot + c_z*e_z_dot + ks_z*sat + kl_z*s)
-    % T_total_max = 0.64 N, m*g = 0.334 N => headroom = 9 m/s^2 in accel units
-    p.c_z   = 0.5;  % sliding surface slope (rad/s)
-    p.ks_z  = 0.4;  % switching gain  [reduced from 0.5 — CF has tighter T_max margin]
-    p.kl_z  = 0.2;  % linear gain on surface
+    % ── X position ────────────────────────────────────────────────────────
+    % c_x raised to match the higher outer-loop bandwidth.
+    % ks_x raised for stronger switching; kl_x added for smooth closure.
+    p.c_x   = 1.0;  % was 0.5
+    p.ks_x  = 0.6;  % was 0.4
+    p.kl_x  = 0.2;  % was 0.1
 
-    % ── X position ───────────────────────────────────────────────────────────
-    % Ux = (m/U1)*(accel_terms)  clamped to [-1,1] before attitude inversion
-    % CF: (m/U1)~(1/g) at hover, so Ux is purely accel/g — no platform scaling needed
-    p.c_x   = 0.5;
-    p.ks_x  = 0.4;  % reduced slightly from 0.5 for smoother Ux
-    p.kl_x  = 0.1;
+    % ── Y position ────────────────────────────────────────────────────────
+    % Y has 2x frequency so needs higher c_y and ks_y than x.
+    p.c_y   = 1.5;  % was 0.5
+    p.ks_y  = 0.8;  % was 0.4
+    p.kl_y  = 0.2;  % was 0.1
 
-    % ── Y position ───────────────────────────────────────────────────────────
-    p.c_y   = 0.5;
-    p.ks_y  = 0.4;
-    p.kl_y  = 0.1;
+    % ── Roll (phi) ────────────────────────────────────────────────────────
+    % Slightly raised c_phi for faster attitude response to larger phi_cmd
+    % excursions generated by the stronger XY outer loop.
+    p.c_phi   = 1.5;  % was 1.0
+    p.ks_phi  = 0.4;  % was 0.3
+    p.kl_phi  = 0.05; % was 0.0  — small linear term for smooth closure
 
-    % ── Roll (phi) ───────────────────────────────────────────────────────────
-    % U2 = Ixx*(... + c_phi*e_phi_dot + ks_phi*sat + kl_phi*s)
-    % Ixx_CF = 16.57e-6; Ixx*ks_phi = 4.97e-6 Nm << tau_phi_max = 0.0104 Nm
-    % Gains are safe unchanged; c_phi=1 gives 1 rad/s surface bandwidth.
-    p.c_phi   = 1.0;
-    p.ks_phi  = 0.3;
-    p.kl_phi  = 0.0;
+    % ── Pitch (theta) ─────────────────────────────────────────────────────
+    p.c_theta  = 1.5;  % was 1.0
+    p.ks_theta = 0.4;  % was 0.3
+    p.kl_theta = 0.05; % was 0.0
 
-    % ── Pitch (theta) ────────────────────────────────────────────────────────
-    % Iyy_CF = 16.66e-6 ≈ Ixx_CF; symmetric treatment
-    p.c_theta  = 1.0;
-    p.ks_theta = 0.3;
-    p.kl_theta = 0.0;
-
-    % ── Yaw (psi) ────────────────────────────────────────────────────────────
-    % Izz_CF = 29.26e-6; Izz*ks_psi = 2.93e-6 Nm << tau_psi_max = 8.04e-3 Nm
-    % Yaw authority is tighter than roll/pitch (smaller l, smaller d/b ratio).
-    % c_psi = 0.5 gives slower yaw convergence — appropriate for CF.
+    % ── Yaw (psi) ─────────────────────────────────────────────────────────
+    % Yaw already excellent — kept unchanged.
     p.c_psi   = 0.5;
     p.ks_psi  = 0.1;
-    p.kl_psi  = 0.3;  % reduced from 0.5 — yaw authority is tighter on CF
+    p.kl_psi  = 0.3;
 
-    % Boundary layer width (used in sat() function)
-    % bl > 0 gives smooth saturation; bl = 0 collapses to pure sign() (chattering)
-    p.sat_bl = 0.15;  % slightly tighter than original 0.2 for faster surface approach
+    % ── Boundary layer ────────────────────────────────────────────────────
+    % Tightened slightly: faster surface enforcement, still chattering-free.
+    p.sat_bl = 0.10;  % was 0.15
 
 end
